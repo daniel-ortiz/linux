@@ -78,6 +78,7 @@ struct hists {
 	const struct dso	*dso_filter;
 	const char		*uid_filter_str;
 	const char		*symbol_filter_str;
+	struct numa_metrics	*multiproc_traffic;
 	pthread_mutex_t		lock;
 	struct events_stats	stats;
 	u64			event_stream;

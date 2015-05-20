@@ -35,9 +35,13 @@
 #include "util/hist.h"
 #include "util/data.h"
 #include "arch/common.h"
+#include "util/numa_metrics.h"
 
 #include <dlfcn.h>
 #include <linux/bitmap.h>
+
+//for numa analysis
+#include "session.h"
 
 struct report {
 	struct perf_tool	tool;
@@ -85,7 +89,11 @@ static int report__add_mem_hist_entry(struct perf_tool *tool, struct addr_locati
 	struct hist_entry *he;
 	struct mem_info *mi, *mx;
 	uint64_t cost;
+	int access_level;
 	int err = sample__resolve_callchain(sample, &parent, evsel, al, rep->max_stack);
+	struct numa_metrics	*nm;
+	struct hists h;
+	int macc;
 
 	if (err)
 		return err;
@@ -112,7 +120,31 @@ static int report__add_mem_hist_entry(struct perf_tool *tool, struct addr_locati
 				cost, cost, 0);
 	if (!he)
 		return -ENOMEM;
-
+	
+	
+	//we want to count only the events that respond to the PID of the process under consideration
+	
+	//TODO the PID filter must be correctly implemented
+	if(he->thread !=0 && he->thread->pid_== 116008){
+		//Here we add the interesting accesses to another list
+		//"interesting" accesses are those which are remote or L3 misses	
+		// they must later be filtered to find out whether they actually are 
+		access_level=filter_local_accesses(he);
+		//TODO cpu number must be flexible
+		if(!access_level == 0 && (he->cpu>=0 && he->cpu <31 )){
+			macc=evsel->hists.multiproc_traffic->process_accesses[he->cpu];
+			macc++;
+			evsel->hists.multiproc_traffic->process_accesses[he->cpu]=macc;
+			
+		}
+	
+	}
+	
+	
+	
+	
+	
+	
 	if (ui__has_annotation()) {
 		err = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
 		if (err)
@@ -526,9 +558,32 @@ static int __cmd_report(struct report *rep)
 	struct perf_session *session = rep->session;
 	struct perf_evsel *pos;
 	struct perf_data_file *file = session->file;
+	//begin personal additions
+	struct perf_evsel *current_evsel;
+	int iter;
+	struct perf_evsel *pos6,*pos2;
+	//struct hists hists;
+	struct hists *hists;
+	struct numa_metrics	*nm;
+	struct hist_entry* a_hist_entry;
+	struct rb_node *nd;
+	struct rb_root *rr,rr2;
+	u64 m;
 
 	signal(SIGINT, sig_handler);
 
+	/*do some numa analysis initialization
+	 * */ 
+
+	evlist__for_each(session->evlist, current_evsel){
+		if (&current_evsel->hists){
+			nm=malloc(sizeof(struct numa_metrics));
+			current_evsel->hists.multiproc_traffic=nm;
+			//TODO adjust ncpus
+			for(iter=0; iter<32; iter++) nm->process_accesses[iter]=0;
+		}
+	}
+		
 	if (rep->cpu_list) {
 		ret = perf_session__cpu_bitmap(session, rep->cpu_list,
 					       rep->cpu_bitmap);
@@ -561,7 +616,35 @@ static int __cmd_report(struct report *rep)
 			return 0;
 		}
 	}
-
+	
+	evlist__for_each(session->evlist, pos2)
+		pos6= pos2->name ? pos2: pos6;
+		
+	//hists= pos6->hists;
+		hists = &pos6->hists;
+		
+		rr= hists->entries_in;
+	
+	//Look at the meminfo of the present hists
+	//for (nd = rb_first(&hists->entries); nd; nd = rb_next(nd)) {
+	for (nd = rb_first(rr); nd; nd = rb_next(&a_hist_entry->rb_node_in)) {
+		a_hist_entry = rb_entry(nd, struct hist_entry, rb_node_in);
+				
+		if (!a_hist_entry){
+				printf("hist entry retrieval unsuccessful");
+				continue;
+		}
+		 m =  PERF_MEM_LVL_NA;
+		
+		if (a_hist_entry->mem_info)
+			m  =a_hist_entry->mem_info->data_src.mem_lvl;
+		else
+			printf("no meminfo could be found");
+			
+		//printf("%llu ",m);
+		m=-2;
+	}
+	
 	nr_samples = report__collapse_hists(rep);
 
 	if (session_done())
