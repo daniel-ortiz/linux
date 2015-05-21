@@ -5,6 +5,7 @@
 #include "sort.h"
 #include "evsel.h"
 #include <math.h>
+#include "numa_metrics.h"
 
 static bool hists__filter_entry_by_dso(struct hists *hists,
 				       struct hist_entry *he);
@@ -670,6 +671,9 @@ void hists__output_resort(struct hists *hists)
 	struct rb_node *next;
 	struct hist_entry *n;
 	u64 min_callchain_hits;
+	//for numa analysis
+	int iter;
+	
 
 	min_callchain_hits = hists->stats.total_period * (callchain_param.min_percent / 100);
 
@@ -684,14 +688,24 @@ void hists__output_resort(struct hists *hists)
 	hists->nr_entries = 0;
 	hists->stats.total_period = 0;
 	hists__reset_col_len(hists);
+	
 
+	printf("\n Remote to overall access ratio  \n");
+	for(iter=0; iter<31; iter++){
+			printf(" %d / %d  \n", hists->multiproc_traffic->remote_accesses[iter],hists->multiproc_traffic->process_accesses[iter] );
+	}
+	iter=0;
 	while (next) {
 		n = rb_entry(next, struct hist_entry, rb_node_in);
 		next = rb_next(&n->rb_node_in);
-
-		__hists__insert_output_entry(&hists->entries, n, min_callchain_hits);
-		hists__inc_nr_entries(hists, n);
+		  //will only put in the output entries the ones we care about
+		  if (filter_local_accesses(n)==0){
+			__hists__insert_output_entry(&hists->entries, n, min_callchain_hits);
+			hists__inc_nr_entries(hists, n);
+		  }
+		  iter++;
 	}
+	printf("*** iter %d \n",iter);
 }
 
 static void hists__remove_entry_filter(struct hists *hists, struct hist_entry *h,

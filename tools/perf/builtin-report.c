@@ -126,16 +126,19 @@ static int report__add_mem_hist_entry(struct perf_tool *tool, struct addr_locati
 	
 	//TODO the PID filter must be correctly implemented
 	if(he->thread !=0 && he->thread->pid_== 116008){
+		
 		//Here we add the interesting accesses to another list
 		//"interesting" accesses are those which are remote or L3 misses	
 		// they must later be filtered to find out whether they actually are 
 		access_level=filter_local_accesses(he);
 		//TODO cpu number must be flexible
+		if(he->cpu>=0 && he->cpu <31 ){
+			evsel->hists.multiproc_traffic->process_accesses[he->cpu]++;
+		}
 		if(!access_level == 0 && (he->cpu>=0 && he->cpu <31 )){
-			macc=evsel->hists.multiproc_traffic->process_accesses[he->cpu];
+			macc=evsel->hists.multiproc_traffic->remote_accesses[he->cpu];
 			macc++;
-			evsel->hists.multiproc_traffic->process_accesses[he->cpu]=macc;
-			
+			evsel->hists.multiproc_traffic->remote_accesses[he->cpu]=macc;
 		}
 	
 	}
@@ -580,7 +583,10 @@ static int __cmd_report(struct report *rep)
 			nm=malloc(sizeof(struct numa_metrics));
 			current_evsel->hists.multiproc_traffic=nm;
 			//TODO adjust ncpus
-			for(iter=0; iter<32; iter++) nm->process_accesses[iter]=0;
+			for(iter=0; iter<32; iter++) {
+				nm->process_accesses[iter]=0;
+				nm->remote_accesses[iter]=0;	
+			}
 		}
 	}
 		
@@ -627,9 +633,10 @@ static int __cmd_report(struct report *rep)
 	
 	//Look at the meminfo of the present hists
 	//for (nd = rb_first(&hists->entries); nd; nd = rb_next(nd)) {
+	iter=0;
 	for (nd = rb_first(rr); nd; nd = rb_next(&a_hist_entry->rb_node_in)) {
 		a_hist_entry = rb_entry(nd, struct hist_entry, rb_node_in);
-				
+		iter++;		
 		if (!a_hist_entry){
 				printf("hist entry retrieval unsuccessful");
 				continue;
@@ -643,9 +650,11 @@ static int __cmd_report(struct report *rep)
 			
 		//printf("%llu ",m);
 		m=-2;
+		iter++;
 	}
+	printf(" \n postprocessing %d \n",iter);
 	
-	nr_samples = report__collapse_hists(rep);
+	//nr_samples = report__collapse_hists(rep);
 
 	if (session_done())
 		return 0;

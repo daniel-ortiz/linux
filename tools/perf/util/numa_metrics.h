@@ -3,6 +3,7 @@
 
 struct numa_metrics {
 	int n_cpus;
+	int remote_accesses[32];
 	int process_accesses[32];
 };
 
