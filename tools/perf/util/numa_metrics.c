@@ -32,7 +32,7 @@ int get_access_type(struct hist_entry *entry,int pid){
 	status=&st;
 	
 	ret= move_pages(pid, count, pages, nodes, status,0);
-	printf ("MP %d %d \n ",ret, status[0] );	
+	printf ("MP %d %d %d %p \n ",ret, status[0],entry->cpu,entry->mem_info->daddr.addr );	
 	return ret;
 }
 
@@ -134,15 +134,16 @@ void launch_report(int argc, const char **argv){
 		}
 		
 		//Call string for record record -W -d -e cpu/mem-loads/pp --cpu 0-31 sleep tsleep
-		strs = calloc(5, sizeof(char *));
+		strs = calloc(7, sizeof(char *));
 		strs[0] = strdup("numaan");
 		strs[1] = strdup(*(argv+2));
 		strs[2] = strdup("");
 		strs[3] = strdup("--mem-mode");
 		strs[4] = strdup("-n");
-		
+		strs[5] = strdup("--dso");
+		strs[6] = strdup("touch");
 		
 		printf("before launching report %d %s \n",argc,argv[0]);
-		ret = cmd_report(5, strs, NULL);
+		ret = cmd_report(7, strs, NULL);
 		ret++;
 }
