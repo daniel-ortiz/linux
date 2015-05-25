@@ -2,6 +2,39 @@
 #include "hist.h"
 #include "symbol.h"
 #include "numa_metrics.h"
+#include <numaif.h>
+
+
+int get_access_type(struct hist_entry *entry,int pid){
+	
+	u64 addr,mask;
+	int count,*nodes,node;
+	void *page, **pages;
+	int* status,st;
+	long ret;
+	
+	st=555;
+	
+	if (!entry->mem_info)
+		return -1;
+		
+	addr= entry->mem_info->daddr.addr;
+	
+	//Assuming page size is 4K the 12 LSBs are discharged to 
+	//obtain the page number
+	mask= 0xFFF; // 12 bytes
+	addr= addr & ~mask ;
+	count=1;
+	node=0;
+	nodes=NULL;
+	page= (void *) addr;
+	pages=&page;
+	status=&st;
+	
+	ret= move_pages(pid, count, pages, nodes, status,0);
+	printf ("MP %d %d \n ",ret, status[0] );	
+	return ret;
+}
 
 int filter_local_accesses(struct hist_entry *entry){
 	//This method is based on util/sort.c:hist_entry__lvl_snprintf
@@ -46,4 +79,70 @@ int filter_local_accesses(struct hist_entry *entry){
 	}
 	//any other accesses are filtered but passed as different information
 	return 2;
+}
+
+int main_numaan(int argc, const char **argv){
+	
+	int ret,pid;
+	const char **strs;
+	
+	if (argc >3 && !strcmp(*(argv+2),"run") ){
+		launch_record(argc,argv);
+		*(argv+2)=*(argv+3);
+
+		launch_report(argc,argv);
+	}
+	else{
+		launch_report(argc,argv);
+	}
+}
+
+void launch_record(int argc, const char **argv){
+		int ret;		
+		const char **strs = calloc(12, sizeof(char *));
+		//Call string for record record -W -d -e cpu/mem-loads/pp --cpu 0-31 sleep tsleep
+		strs[0] = strdup("record");
+		strs[1] = strdup("-W");
+		strs[2] = strdup("-d");
+		strs[3] = strdup("-e");
+		strs[4] = strdup("cpu/mem-loads/pp");
+		strs[5] = strdup("--cpu");
+		strs[6] = strdup("0-31");
+		strs[7] = strdup("sleep");
+		strs[8] = strdup("2");
+		strs[9] = strdup(" ");
+		printf("before launching record %d %s \n",argc,argv[0]);
+		//ret = cmd_record(9, strs, NULL);
+		system("./perf mem record -W -d -e cpu/mem-loads/pp --cpu 0-31 sleep 2 ");
+		printf("end of sampling stage %d %s \n",argc,argv[0]);
+		ret++;
+	
+}
+
+void launch_report(int argc, const char **argv){
+		int pid,ret;
+		const char **strs = calloc(6, sizeof(char *));
+		
+		if(argc < 3)
+			return;
+		
+		pid=atoi(*(argv+2));
+		
+		if(pid==0){
+			printf("pid error \n");
+			return;
+		}
+		
+		//Call string for record record -W -d -e cpu/mem-loads/pp --cpu 0-31 sleep tsleep
+		strs = calloc(5, sizeof(char *));
+		strs[0] = strdup("numaan");
+		strs[1] = strdup(*(argv+2));
+		strs[2] = strdup("");
+		strs[3] = strdup("--mem-mode");
+		strs[4] = strdup("-n");
+		
+		
+		printf("before launching report %d %s \n",argc,argv[0]);
+		ret = cmd_report(5, strs, NULL);
+		ret++;
 }

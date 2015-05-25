@@ -55,6 +55,7 @@ struct report {
 	bool			mem_mode;
 	bool			header;
 	bool			header_only;
+	int			pid_uo; //The PID under observation for numa analytics
 	int			max_stack;
 	struct perf_read_values	show_threads_values;
 	const char		*pretty_printing_style;
@@ -125,7 +126,7 @@ static int report__add_mem_hist_entry(struct perf_tool *tool, struct addr_locati
 	//we want to count only the events that respond to the PID of the process under consideration
 	
 	//TODO the PID filter must be correctly implemented
-	if(he->thread !=0 && he->thread->pid_== 116008){
+	if(he->thread !=0 && he->thread->pid_== evsel->hists.multiproc_traffic->pid_uo){
 		
 		//Here we add the interesting accesses to another list
 		//"interesting" accesses are those which are remote or L3 misses	
@@ -581,6 +582,7 @@ static int __cmd_report(struct report *rep)
 	evlist__for_each(session->evlist, current_evsel){
 		if (&current_evsel->hists){
 			nm=malloc(sizeof(struct numa_metrics));
+			nm->pid_uo=rep->pid_uo;
 			current_evsel->hists.multiproc_traffic=nm;
 			//TODO adjust ncpus
 			for(iter=0; iter<32; iter++) {
@@ -643,8 +645,10 @@ static int __cmd_report(struct report *rep)
 		}
 		 m =  PERF_MEM_LVL_NA;
 		
-		if (a_hist_entry->mem_info)
+		if (a_hist_entry->mem_info){
 			m  =a_hist_entry->mem_info->data_src.mem_lvl;
+			
+		}
 		else
 			printf("no meminfo could be found");
 			
@@ -811,6 +815,11 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 		"perf report [<options>]",
 		NULL
 	};
+	
+	//for Numa analytics
+	char * modestr;
+	char * piduo;
+	
 	struct report report = {
 		.tool = {
 			.sample		 = process_sample_event,
@@ -928,8 +937,24 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 	};
 
 	perf_config(report__config, &report);
-
-	argc = parse_options(argc, argv, options, report_usage, 0);
+	
+	/**
+	 * Gets the PID
+	 * */
+	 
+	//TODO do in a better way, incorporate into perfs' normal parser
+	//the first string is nummaan, we save the PID in the struct
+	if(argc > 0 && !strcmp(*argv,"numaan")){
+		piduo=*(argv+1);
+		report.pid_uo=atoi(piduo);
+		printf("Analysis for pid %s set \n",piduo);
+		argc = parse_options(argc-2, argv+2, options, report_usage, 0);
+		
+	} else{
+		argc = parse_options(argc, argv, options, report_usage, 0);
+	}
+	
+	
 
 	if (report.use_stdio)
 		use_browser = 0;

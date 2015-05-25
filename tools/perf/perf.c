@@ -15,6 +15,7 @@
 #include "util/parse-events.h"
 #include <api/fs/debugfs.h>
 #include <pthread.h>
+#include "numa_metrics.h"
 
 const char perf_usage_string[] =
 	"perf [--version] [--help] COMMAND [ARGS]";
@@ -452,12 +453,71 @@ void pthread__unblock_sigwinch(void)
 	pthread_sigmask(SIG_UNBLOCK, &set, NULL);
 }
 
+
+
+//// this represents the test tool
+//int main_numaan(int argc, const char **argv)
+//{
+	
+		
+		//pid=atoi(*(argv+3));
+		//if(pid==0){
+			//printf("pid error");
+			//return
+		//}
+			
+		//strs = calloc(12, sizeof(char *));
+		////Call string for record record -W -d -e cpu/mem-loads/pp --cpu 0-31 sleep tsleep
+		//strs[0] = strdup("numaan");
+		//strs[1] = strdup("5421");
+		//strs[2] = strdup("record");
+		//strs[3] = strdup("-W");
+		//strs[4] = strdup("-d");
+		//strs[5] = strdup("-e");
+		//strs[6] = strdup("cpu/mem-loads/pp");
+		//strs[7] = strdup("--cpu");
+		//strs[8] = strdup("0-31");
+		//strs[9] = strdup("sleep");
+		//strs[10] = strdup("10");
+		//strs[11] = strdup(" ");
+		//printf("before launching record %d %s \n",argc,argv[0]);
+		//ret = cmd_record(12, strs, NULL);
+		//ret++;
+	//}
+	//else {
+
+		////Call string for record record -W -d -e cpu/mem-loads/pp --cpu 0-31 sleep tsleep
+		//strs = calloc(5, sizeof(char *));
+		//strs[0] = strdup("numaan");
+		//strs[1] = strdup("116008");
+		//strs[2] = strdup("");
+		//strs[3] = strdup("--mem-mode");
+		//strs[4] = strdup("-n");
+		
+		
+		//printf("before launching report %d %s \n",argc,argv[0]);
+		//ret = cmd_report(5, strs, NULL);
+		//ret++;
+	//}
+	//return 1;
+	
+//}
+
 int main(int argc, const char **argv)
 {
 	const char *cmd;
 
 	/* The page_size is placed in util object. */
 	page_size = sysconf(_SC_PAGE_SIZE);
+	
+	/**
+	 *Detects the analysis mode
+	 * not the best way to do it but it works 
+	 */
+	if ( !strcmp(argv[1],"numa-an")){
+		main_numaan(argc,argv);
+		return 1;
+	}
 
 	cmd = perf_extract_argv0_path(argv[0]);
 	if (!cmd)

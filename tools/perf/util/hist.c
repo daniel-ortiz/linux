@@ -699,7 +699,8 @@ void hists__output_resort(struct hists *hists)
 		n = rb_entry(next, struct hist_entry, rb_node_in);
 		next = rb_next(&n->rb_node_in);
 		  //will only put in the output entries the ones we care about
-		  if (filter_local_accesses(n)==0){
+		  if (filter_local_accesses(n)==0 && n->thread->pid_==hists->multiproc_traffic->pid_uo ){
+			get_access_type(n,hists->multiproc_traffic->pid_uo);
 			__hists__insert_output_entry(&hists->entries, n, min_callchain_hits);
 			hists__inc_nr_entries(hists, n);
 		  }
