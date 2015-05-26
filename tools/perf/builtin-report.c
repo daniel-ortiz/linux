@@ -581,9 +581,11 @@ static int __cmd_report(struct report *rep)
 
 	evlist__for_each(session->evlist, current_evsel){
 		if (&current_evsel->hists){
+			
 			nm=malloc(sizeof(struct numa_metrics));
 			nm->pid_uo=rep->pid_uo;
 			current_evsel->hists.multiproc_traffic=nm;
+			init_processor_mapping(nm);
 			//TODO adjust ncpus
 			for(iter=0; iter<32; iter++) {
 				nm->process_accesses[iter]=0;

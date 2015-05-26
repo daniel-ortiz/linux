@@ -6,9 +6,12 @@ struct numa_metrics {
 	int pid_uo;
 	int remote_accesses[32];
 	int process_accesses[32];
+	int cpu_to_processor[32];
 };
 
-int get_access_type(struct hist_entry *entry,int pid);
+int get_access_type(struct hists *hists, struct hist_entry *entry,int pid);
+
+void init_processor_mapping(struct numa_metrics *multiproc_info);
 
 int main_numaan(int argc, const char **argv);
 	

@@ -5,7 +5,7 @@
 #include <numaif.h>
 
 
-int get_access_type(struct hist_entry *entry,int pid){
+int get_access_type(struct hists *hists, struct hist_entry *entry,int pid){
 	
 	u64 addr,mask;
 	int count,*nodes,node;
@@ -13,7 +13,7 @@ int get_access_type(struct hist_entry *entry,int pid){
 	int* status,st;
 	long ret;
 	
-	st=555;
+	st=-1;
 	
 	if (!entry->mem_info)
 		return -1;
@@ -32,7 +32,9 @@ int get_access_type(struct hist_entry *entry,int pid){
 	status=&st;
 	
 	ret= move_pages(pid, count, pages, nodes, status,0);
-	printf ("MP %d %d %d %p \n ",ret, status[0],entry->cpu,entry->mem_info->daddr.addr );	
+	printf ("MP success %d home proc %d requesting cpu %d requesting proc %d addr %p \n ",ret, status[0],
+	
+	entry->cpu,hists->multiproc_traffic->cpu_to_processor[entry->cpu],entry->mem_info->daddr.addr );	
 	return ret;
 }
 
@@ -146,4 +148,12 @@ void launch_report(int argc, const char **argv){
 		printf("before launching report %d %s \n",argc,argv[0]);
 		ret = cmd_report(7, strs, NULL);
 		ret++;
+}
+
+void init_processor_mapping(struct numa_metrics *multiproc_info){
+	int map[32]={0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0};
+	int i;
+	
+	for(int i=0; i<32;i++) 
+	multiproc_info->cpu_to_processor[i]=map[i];
 }
