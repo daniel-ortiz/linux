@@ -33,7 +33,30 @@ int get_access_type(struct hists *hists, struct hist_entry *entry,int pid){
 	
 	ret= move_pages(pid, count, pages, nodes, status,0);
 	printf ("MP success %d home proc %d requesting cpu %d requesting proc %d addr %p \n ",ret, status[0],
+	entry->cpu,hists->multiproc_traffic->cpu_to_processor[entry->cpu],entry->mem_info->daddr.addr );	
+	//only if the pages query is successful and the home node is different than the node that queries the address the page is migrated
+	if (ret != 0)
+		return;
+	//the home proc can only be different to the requesting proc and this home proc must be 0 or 1
+	if (hists->multiproc_traffic->cpu_to_processor[entry->cpu] == st || st < 0 || st>1  )
+		return;
+		
+	//determine the new home processor
+	node = hists->multiproc_traffic->cpu_to_processor[entry->cpu]; 
+	nodes=&node;
 	
+	//we want to move the page to its new home
+	ret= 	move_pages(pid, count, pages, nodes, status,0);
+			printf("MPG: %d \n",node);
+	if (ret!=0){
+		printf("error moving page \n");
+		return;
+	}
+	
+	//we will query again for the home of the page
+	nodes=NULL;
+	ret= move_pages(pid, count, pages, nodes, status,0);
+	printf ("MPR success %d home proc %d requesting cpu %d requesting proc %d addr %p \n ",ret, status[0],
 	entry->cpu,hists->multiproc_traffic->cpu_to_processor[entry->cpu],entry->mem_info->daddr.addr );	
 	return ret;
 }

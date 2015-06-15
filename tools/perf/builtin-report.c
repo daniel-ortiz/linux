@@ -14,6 +14,7 @@
 #include "util/color.h"
 #include <linux/list.h>
 #include <linux/rbtree.h>
+#include <linux/hashtable.h>
 #include "util/symbol.h"
 #include "util/callchain.h"
 #include "util/strlist.h"
@@ -64,7 +65,9 @@ struct report {
 	float			min_percent;
 	DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
 };
+	
 
+	
 static int report__config(const char *var, const char *value, void *cb)
 {
 	if (!strcmp(var, "report.group")) {
@@ -573,16 +576,30 @@ static int __cmd_report(struct report *rep)
 	struct rb_node *nd;
 	struct rb_root *rr,rr2;
 	u64 m;
-
+	
+	struct page_stats pstest={
+		.proc0_acceses=100,
+		.proc1_acceses=200,
+		.my_hash_list=0 
+	};
+	
+	int key=1000;
+	
 	signal(SIGINT, sig_handler);
 
 	/*do some numa analysis initialization
 	 * */ 
+	//static DEFINE_HASHTABLE(perfacc, 7);
 
+	
 	evlist__for_each(session->evlist, current_evsel){
+	//HT addition test
+
 		if (&current_evsel->hists){
 			
 			nm=malloc(sizeof(struct numa_metrics));
+			hash_init(nm->page_acceses);
+			hash_add(nm->page_acceses, &pstest.my_hash_list,key);
 			nm->pid_uo=rep->pid_uo;
 			current_evsel->hists.multiproc_traffic=nm;
 			init_processor_mapping(nm);

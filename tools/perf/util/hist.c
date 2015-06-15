@@ -6,6 +6,7 @@
 #include "evsel.h"
 #include <math.h>
 #include "numa_metrics.h"
+#include <linux/hashtable.h>
 
 static bool hists__filter_entry_by_dso(struct hists *hists,
 				       struct hist_entry *he);
@@ -672,7 +673,8 @@ void hists__output_resort(struct hists *hists)
 	struct hist_entry *n;
 	u64 min_callchain_hits;
 	//for numa analysis
-	int iter;
+	int iter,bc;
+	struct page_stats *ps;
 	
 
 	min_callchain_hits = hists->stats.total_period * (callchain_param.min_percent / 100);
@@ -689,6 +691,11 @@ void hists__output_resort(struct hists *hists)
 	hists->stats.total_period = 0;
 	hists__reset_col_len(hists);
 	
+	//iterate over all the entries
+	hash_for_each(hists->multiproc_traffic->page_acceses, bc, ps, my_hash_list){
+		//printf(KERN_INFO "data=%d is in bucket %d\n", current->data, bkt);
+		printf("hello");
+	}
 
 	printf("\n Remote to overall access ratio  \n");
 	for(iter=0; iter<31; iter++){

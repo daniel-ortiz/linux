@@ -266,6 +266,7 @@ void event_attr_init(struct perf_event_attr *attr);
 #define _STR(x) #x
 #define STR(x) _STR(x)
 
+//commented upon inclussion of hashtable because this function is implemented elsewhere
 /*
  *  Determine whether some value is a power of two, where zero is
  * *not* considered a power of two.
