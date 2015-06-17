@@ -3,6 +3,7 @@
 #include "symbol.h"
 #include "numa_metrics.h"
 #include <numaif.h>
+#include <linux/hashtable.h>
 
 
 int get_access_type(struct hists *hists, struct hist_entry *entry,int pid){
@@ -180,3 +181,39 @@ void init_processor_mapping(struct numa_metrics *multiproc_info){
 	for(int i=0; i<32;i++) 
 	multiproc_info->cpu_to_processor[i]=map[i];
 }
+
+struct page_stats *search_access(struct numa_metrics *multiproc_info, void * key){
+	struct page_stats *cursor;
+	hash_for_each_possible(multiproc_info->page_acceses, cursor, my_hash_list, key){
+		if(cursor->page_addr==key)
+			return cursor;
+	}	
+	
+	return NULL;
+}
+
+void add_mem_access( struct numa_metrics *multiproc_info, void *page_addr, int accessing_cpu){
+	struct page_stats *current=NULL; 
+	int proc;
+	int hm;
+	//search the node for apparances
+	current=search_access(multiproc_info, page_addr);
+	proc=multiproc_info->cpu_to_processor[accessing_cpu];
+	if (current==NULL){
+		current=malloc(sizeof(struct page_stats));
+		current->proc0_acceses=0;
+		current->proc1_acceses=0;
+		current->page_addr=page_addr;
+		hm=hash_min(current->page_addr, HASH_BITS(multiproc_info->page_acceses));
+		printf ("hm %d %p %d \n", hm,current->page_addr, HASH_BITS(multiproc_info->page_acceses) );
+		hash_add(multiproc_info->page_acceses, &(current->my_hash_list), current->page_addr);
+	}
+	
+	if (proc==0){
+		current->proc0_acceses++;
+	}else if(proc==1){
+		current->proc1_acceses++;
+	}
+	
+}
+

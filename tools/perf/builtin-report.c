@@ -93,12 +93,15 @@ static int report__add_mem_hist_entry(struct perf_tool *tool, struct addr_locati
 	struct hist_entry *he;
 	struct mem_info *mi, *mx;
 	uint64_t cost;
-	int access_level;
+	int access_level,bkt;
 	int err = sample__resolve_callchain(sample, &parent, evsel, al, rep->max_stack);
 	struct numa_metrics	*nm;
+	struct page_stats *pg_stats;
 	struct hists h;
 	int macc;
-
+	u64 mask;
+	void *page_addr;
+	
 	if (err)
 		return err;
 
@@ -135,9 +138,12 @@ static int report__add_mem_hist_entry(struct perf_tool *tool, struct addr_locati
 		//"interesting" accesses are those which are remote or L3 misses	
 		// they must later be filtered to find out whether they actually are 
 		access_level=filter_local_accesses(he);
+		mask= 0xFFF; // 12 bytes
 		//TODO cpu number must be flexible
 		if(he->cpu>=0 && he->cpu <31 ){
 			evsel->hists.multiproc_traffic->process_accesses[he->cpu]++;
+			page_addr=he->mem_info->daddr.addr & ~mask ;
+			add_mem_access( &(evsel->hists.multiproc_traffic->page_acceses), page_addr, he->cpu);
 		}
 		if(!access_level == 0 && (he->cpu>=0 && he->cpu <31 )){
 			macc=evsel->hists.multiproc_traffic->remote_accesses[he->cpu];
@@ -146,11 +152,6 @@ static int report__add_mem_hist_entry(struct perf_tool *tool, struct addr_locati
 		}
 	
 	}
-	
-	
-	
-	
-	
 	
 	if (ui__has_annotation()) {
 		err = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
@@ -567,11 +568,12 @@ static int __cmd_report(struct report *rep)
 	struct perf_data_file *file = session->file;
 	//begin personal additions
 	struct perf_evsel *current_evsel;
-	int iter;
+	int iter,bkt;
 	struct perf_evsel *pos6,*pos2;
 	//struct hists hists;
 	struct hists *hists;
 	struct numa_metrics	*nm;
+	struct page_stats *pg_stats;
 	struct hist_entry* a_hist_entry;
 	struct rb_node *nd;
 	struct rb_root *rr,rr2;
@@ -628,7 +630,8 @@ static int __cmd_report(struct report *rep)
 	ret = perf_session__process_events(session, &rep->tool);
 	if (ret)
 		return ret;
-
+	
+	
 	report__warn_kptr_restrict(rep);
 
 	if (use_browser == 0) {
@@ -644,8 +647,12 @@ static int __cmd_report(struct report *rep)
 		}
 	}
 	
-	evlist__for_each(session->evlist, pos2)
+	evlist__for_each(session->evlist, pos2){
 		pos6= pos2->name ? pos2: pos6;
+		hash_for_each(pos6->hists.multiproc_traffic->page_acceses, bkt, pg_stats, my_hash_list){
+			printf("%d %p %d %d  \n",bkt, pg_stats->page_addr, pg_stats->proc0_acceses,pg_stats->proc1_acceses );
+		}
+	}
 		
 	//hists= pos6->hists;
 		hists = &pos6->hists;

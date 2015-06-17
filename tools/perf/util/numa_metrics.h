@@ -12,8 +12,9 @@ struct numa_metrics {
 };
 
 struct page_stats{
-	unsigned char proc0_acceses;
-	unsigned char proc1_acceses;
+	int proc0_acceses;
+	int proc1_acceses;
+	void * page_addr;
 	struct hlist_node my_hash_list ; 
 };
 
