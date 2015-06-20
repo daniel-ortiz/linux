@@ -14,7 +14,7 @@ struct numa_metrics {
 struct page_stats{
 	int proc0_acceses;
 	int proc1_acceses;
-	void * page_addr;
+	unsigned int page_addr;
 	struct hlist_node my_hash_list ; 
 };
 

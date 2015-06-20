@@ -4,6 +4,9 @@
 #include "numa_metrics.h"
 #include <numaif.h>
 #include <linux/hashtable.h>
+#include <time.h>
+#include <signal.h>
+#include <omp.h>
 
 
 int get_access_type(struct hists *hists, struct hist_entry *entry,int pid){
@@ -109,23 +112,103 @@ int filter_local_accesses(struct hist_entry *entry){
 
 int main_numaan(int argc, const char **argv){
 	
-	int ret,pid;
+	int ret,pid,label,kill_rslt,iter,end_read,samples_taken;
+	int labels[10]={0,0,0,0,0,0,0,0,0,0};
 	const char **strs;
+	time_t ctime; 
+	omp_lock_t label_lock;
+	char labelstr[20];
+	int exit=0;
+	omp_init_lock(&label_lock);
+	end_read=0;
+	samples_taken=0;
 	
-	if (argc >3 && !strcmp(*(argv+2),"run") ){
-		launch_record(argc,argv);
-		*(argv+2)=*(argv+3);
+	if (argc <3){
+			printf("not enough arguments");
+	}
+	
+	#pragma omp parallel
+    #pragma omp single nowait
+    {
+        #pragma omp task shared (label_lock,labels) private (iter,label)
+        while (!exit){
+		//record
+		//used to find out whether the process is alive or not)
+		pid=atoi(argv[2]);
+		kill_rslt=kill(pid,0);
+		if(kill_rslt==-1 &&  errno== ESRCH){
+				printf("process pid %d not detected \n",pid);
+				omp_set_lock(&label_lock);
+				iter=0;
+				while(labels[iter]!=0 && iter <10) iter++;
+				labels[iter]=-1;	
+	
+				omp_unset_lock(&label_lock);
+				break;
+		}
+		
+		time(&ctime);
+		label=(int)ctime%10000;
+		launch_record(argc,argv,label); 
+		omp_set_lock(&label_lock);
+			iter=0;
+			while(labels[iter]!=0 && iter <10) iter++;
+			labels [iter]=label;
+		omp_unset_lock(&label_lock);
+		//exit=1;
+		//this is a protection for when it fails
+		if (samples_taken++ > 10){
+			exit=1;
+			iter=0;
+			while(labels[iter]!=0 && iter <10) iter++;
+			labels [iter]=-1;
+		}
+	
+	}
+        #pragma omp task shared (label_lock,labels) private (iter,label)
+		
+		while(!end_read){
+			label=0;
+			omp_set_lock(&label_lock);
+				if (labels[0] != 0){
+					label=labels[0];
+					for(iter=0;iter<9 && labels[iter]!=0; iter++){
+						labels[iter]=labels[iter+1];	
+					}
+					printf("retrieve %d \n", label);
+				}
+			omp_unset_lock(&label_lock);
+			if (label==-1){
+					end_read=1;
+			}
+			if(label>0){
+					sprintf(labelstr,"numaan%d.data",label);
+					launch_report(argc,argv,labelstr);
+			}
+		}
+        #pragma omp taskwait
+        printf("c");
+    }
+    
+	
+    //printf("Hello World %d ",(int) ctime % 4000);
+	//if (argc >3 && !strcmp(*(argv+2),"run") ){
+		//launch_record(argc,argv,(int)ctime%10000);
+		//*(argv+2)=*(argv+3);
 
-		launch_report(argc,argv);
-	}
-	else{
-		launch_report(argc,argv);
-	}
+		//launch_report(argc,argv);
+	//}
+	//else{
+		//launch_report(argc,argv);
+	//}
 }
 
-void launch_record(int argc, const char **argv){
-		int ret;		
+void launch_record(int argc, const char **argv, int label){		
 		const char **strs = calloc(12, sizeof(char *));
+		char command[100];
+		
+		sprintf(command, "./perf mem record -W -d -e cpu/mem-loads/pp --cpu 0-31 -o numaan%d.data sleep 1.5",label);
+
 		//Call string for record record -W -d -e cpu/mem-loads/pp --cpu 0-31 sleep tsleep
 		strs[0] = strdup("record");
 		strs[1] = strdup("-W");
@@ -135,17 +218,18 @@ void launch_record(int argc, const char **argv){
 		strs[5] = strdup("--cpu");
 		strs[6] = strdup("0-31");
 		strs[7] = strdup("sleep");
-		strs[8] = strdup("2");
+		strs[8] = strdup("1,5");
 		strs[9] = strdup(" ");
 		printf("before launching record %d %s \n",argc,argv[0]);
 		//ret = cmd_record(9, strs, NULL);
-		system("./perf mem record -W -d -e cpu/mem-loads/pp --cpu 0-31 sleep 2 ");
+		
+		printf("command issued: %s \n",command);
+		system(command);
 		printf("end of sampling stage %d %s \n",argc,argv[0]);
-		ret++;
-	
+
 }
 
-void launch_report(int argc, const char **argv){
+void launch_report(int argc, const char **argv, char* file){
 		int pid,ret;
 		const char **strs = calloc(6, sizeof(char *));
 		
@@ -160,14 +244,16 @@ void launch_report(int argc, const char **argv){
 		}
 		
 		//Call string for record record -W -d -e cpu/mem-loads/pp --cpu 0-31 sleep tsleep
-		strs = calloc(7, sizeof(char *));
+		strs = calloc(9, sizeof(char *));
 		strs[0] = strdup("numaan");
 		strs[1] = strdup(*(argv+2));
 		strs[2] = strdup("");
 		strs[3] = strdup("--mem-mode");
 		strs[4] = strdup("-n");
-		strs[5] = strdup("--dso");
-		strs[6] = strdup("touch");
+		strs[5] = strdup("-i");
+		strs[6] = strdup(file);
+		strs[7] = strdup("--dso");
+		strs[8] = strdup("touch");
 		
 		printf("before launching report %d %s \n",argc,argv[0]);
 		ret = cmd_report(7, strs, NULL);
@@ -182,20 +268,29 @@ void init_processor_mapping(struct numa_metrics *multiproc_info){
 	multiproc_info->cpu_to_processor[i]=map[i];
 }
 
-struct page_stats *search_access(struct numa_metrics *multiproc_info, void * key){
+struct page_stats *search_access(struct numa_metrics *multiproc_info, unsigned int key){
 	struct page_stats *cursor;
 	hash_for_each_possible(multiproc_info->page_acceses, cursor, my_hash_list, key){
 		if(cursor->page_addr==key)
+			printf("%p ",cursor);
 			return cursor;
 	}	
-	
+	printf("end se ");
 	return NULL;
+}
+
+int process_adress(void * addr){
+	u64 val=0;
+	val=addr;
+	return (int) val;
 }
 
 void add_mem_access( struct numa_metrics *multiproc_info, void *page_addr, int accessing_cpu){
 	struct page_stats *current=NULL; 
 	int proc;
 	int hm;
+	int ad;
+	
 	//search the node for apparances
 	current=search_access(multiproc_info, page_addr);
 	proc=multiproc_info->cpu_to_processor[accessing_cpu];
@@ -203,7 +298,7 @@ void add_mem_access( struct numa_metrics *multiproc_info, void *page_addr, int a
 		current=malloc(sizeof(struct page_stats));
 		current->proc0_acceses=0;
 		current->proc1_acceses=0;
-		current->page_addr=page_addr;
+		current->page_addr=process_adress(page_addr);
 		hm=hash_min(current->page_addr, HASH_BITS(multiproc_info->page_acceses));
 		printf ("hm %d %p %d \n", hm,current->page_addr, HASH_BITS(multiproc_info->page_acceses) );
 		hash_add(multiproc_info->page_acceses, &(current->my_hash_list), current->page_addr);
@@ -216,4 +311,6 @@ void add_mem_access( struct numa_metrics *multiproc_info, void *page_addr, int a
 	}
 	
 }
+
+
 

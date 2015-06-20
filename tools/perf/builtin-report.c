@@ -697,7 +697,8 @@ static int __cmd_report(struct report *rep)
 	evlist__for_each(session->evlist, pos)
 		hists__output_resort(&pos->hists);
 
-	return report__browse_hists(rep);
+	//return report__browse_hists(rep);
+	return 0;
 }
 
 static int
