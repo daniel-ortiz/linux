@@ -206,8 +206,7 @@ LIB_FILE=$(OUTPUT)libperf.a
 LIB_H += ../lib/symbol/kallsyms.h
 LIB_H += ../../include/uapi/linux/perf_event.h
 LIB_H += ../../include/linux/rbtree.h
-#for memory keeping of the page tables, needs logarithm as well
-LIB_H += ../../include/linux/hashtable.h
+
 LIB_H += ../../include/linux/list.h
 LIB_H += ../../include/uapi/linux/const.h
 LIB_H += ../../include/linux/hash.h
@@ -241,6 +240,7 @@ LIB_H += util/include/asm/cpufeature.h
 LIB_H += util/include/asm/unistd_32.h
 LIB_H += util/include/asm/unistd_64.h
 LIB_H += perf.h
+LIB_H += util/uthash.h
 LIB_H += util/annotate.h
 LIB_H += util/cache.h
 LIB_H += util/callchain.h

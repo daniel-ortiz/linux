@@ -143,7 +143,8 @@ static int report__add_mem_hist_entry(struct perf_tool *tool, struct addr_locati
 		if(he->cpu>=0 && he->cpu <31 ){
 			evsel->hists.multiproc_traffic->process_accesses[he->cpu]++;
 			page_addr=he->mem_info->daddr.addr & ~mask ;
-			add_mem_access( &(evsel->hists.multiproc_traffic->page_acceses), page_addr, he->cpu);
+			nm=evsel->hists.multiproc_traffic;
+			add_mem_access( nm, page_addr, he->cpu);
 		}
 		if(!access_level == 0 && (he->cpu>=0 && he->cpu <31 )){
 			macc=evsel->hists.multiproc_traffic->remote_accesses[he->cpu];
@@ -573,25 +574,16 @@ static int __cmd_report(struct report *rep)
 	//struct hists hists;
 	struct hists *hists;
 	struct numa_metrics	*nm;
-	struct page_stats *pg_stats;
+	struct page_stats *ps;
 	struct hist_entry* a_hist_entry;
 	struct rb_node *nd;
 	struct rb_root *rr,rr2;
 	u64 m;
 	
-	struct page_stats pstest={
-		.proc0_acceses=100,
-		.proc1_acceses=200,
-		.my_hash_list=0 
-	};
 	
 	int key=1000;
 	
 	signal(SIGINT, sig_handler);
-
-	/*do some numa analysis initialization
-	 * */ 
-	//static DEFINE_HASHTABLE(perfacc, 7);
 
 	
 	evlist__for_each(session->evlist, current_evsel){
@@ -600,8 +592,8 @@ static int __cmd_report(struct report *rep)
 		if (&current_evsel->hists){
 			
 			nm=malloc(sizeof(struct numa_metrics));
-			hash_init(nm->page_acceses);
-			hash_add(nm->page_acceses, &pstest.my_hash_list,key);
+			nm->page_accesses=NULL;
+
 			nm->pid_uo=rep->pid_uo;
 			current_evsel->hists.multiproc_traffic=nm;
 			init_processor_mapping(nm);
@@ -647,41 +639,20 @@ static int __cmd_report(struct report *rep)
 		}
 	}
 	
+	//this is a walk through the information stored in the hashtable
 	evlist__for_each(session->evlist, pos2){
 		pos6= pos2->name ? pos2: pos6;
-		hash_for_each(pos6->hists.multiproc_traffic->page_acceses, bkt, pg_stats, my_hash_list){
-			printf("%d %p %d %d  \n",bkt, pg_stats->page_addr, pg_stats->proc0_acceses,pg_stats->proc1_acceses );
-		}
+		nm= &(pos6->hists.multiproc_traffic);
+			//printf("access review");
+			for(ps=nm->page_accesses; ps != NULL; ps=ps->hh.next) {
+				//printf(" it %p %d %d ", ps->page_addr,ps->proc0_acceses, ps->proc1_acceses );
+			}
 	}
-		
-	//hists= pos6->hists;
-		hists = &pos6->hists;
-		
-		rr= hists->entries_in;
+
 	
 	//Look at the meminfo of the present hists
 	//for (nd = rb_first(&hists->entries); nd; nd = rb_next(nd)) {
 	iter=0;
-	for (nd = rb_first(rr); nd; nd = rb_next(&a_hist_entry->rb_node_in)) {
-		a_hist_entry = rb_entry(nd, struct hist_entry, rb_node_in);
-		iter++;		
-		if (!a_hist_entry){
-				printf("hist entry retrieval unsuccessful");
-				continue;
-		}
-		 m =  PERF_MEM_LVL_NA;
-		
-		if (a_hist_entry->mem_info){
-			m  =a_hist_entry->mem_info->data_src.mem_lvl;
-			
-		}
-		else
-			printf("no meminfo could be found");
-			
-		//printf("%llu ",m);
-		m=-2;
-		iter++;
-	}
 	printf(" \n postprocessing %d \n",iter);
 	
 	//nr_samples = report__collapse_hists(rep);
@@ -695,7 +666,7 @@ static int __cmd_report(struct report *rep)
 	}
 
 	evlist__for_each(session->evlist, pos)
-		hists__output_resort(&pos->hists);
+		hists__output_resort(&(pos->hists));
 
 	//return report__browse_hists(rep);
 	return 0;

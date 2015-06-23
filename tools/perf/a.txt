@@ -1,0 +1,230 @@
+# To display the perf.data header info, please use --header/--header-only options.
+#
+ 
+ postprocessing 0 
+
+ Remote to overall access ratio  
+ 28 / 29  
+ 50 / 50  
+ 85 / 87  
+ 57 / 58  
+ 62 / 64  
+ 100 / 102  
+ 83 / 89  
+ 98 / 101  
+ 60 / 65  
+ 82 / 82  
+ 46 / 48  
+ 52 / 52  
+ 56 / 57  
+ 56 / 57  
+ 0 / 0  
+ 23 / 24  
+ 92 / 93  
+ 0 / 0  
+ 101 / 106  
+ 47 / 49  
+ 98 / 99  
+ 21 / 23  
+ 58 / 63  
+ 203 / 206  
+ 66 / 69  
+ 55 / 56  
+ 87 / 95  
+ 67 / 69  
+ 104 / 109  
+ 61 / 63  
+ 78 / 79  
+control htable 
+MP success 0 home proc -14 requesting cpu 6 requesting proc 0 addr 0xffff881010084ac0 
+ MP success 0 home proc -14 requesting cpu 24 requesting proc 0 addr 0xffff880813eaa014 
+ MP success 0 home proc -14 requesting cpu 26 requesting proc 0 addr 0xffffffff81cc0ae0 
+ MP success 0 home proc -14 requesting cpu 28 requesting proc 0 addr 0xffff8808124fbec8 
+ MP success 0 home proc -14 requesting cpu 18 requesting proc 1 addr 0xffffffff81ee1588 
+ MP success 0 home proc -14 requesting cpu 28 requesting proc 0 addr 0xffffffff81cc0ae0 
+ MP success 0 home proc -14 requesting cpu 26 requesting proc 0 addr 0xffff881013b86408 
+ MP success 0 home proc -14 requesting cpu 26 requesting proc 0 addr 0xffffffff81cff0b0 
+ MP success 0 home proc -14 requesting cpu 10 requesting proc 1 addr 0xffff880813e86014 
+ MP success 0 home proc -14 requesting cpu 26 requesting proc 0 addr 0xffffffff81d0e000 
+ MP success 0 home proc -14 requesting cpu 7 requesting proc 0 addr 0xfeb950b0 
+ MP success 0 home proc -14 requesting cpu 18 requesting proc 1 addr 0xfeb90a80 
+ MP success 0 home proc -14 requesting cpu 12 requesting proc 1 addr 0xffff8808126ecec0 
+ MP success 0 home proc -14 requesting cpu 4 requesting proc 0 addr 0xffff880813862108 
+ MP success 0 home proc -14 requesting cpu 18 requesting proc 1 addr 0xffff880813863788 
+ MP success 0 home proc -14 requesting cpu 28 requesting proc 0 addr 0xfeb84b40 
+ MP success 0 home proc -14 requesting cpu 23 requesting proc 1 addr 0xfeb96980 
+ MP success 0 home proc -14 requesting cpu 21 requesting proc 1 addr 0xfeb8aa80 
+ MP success 0 home proc -14 requesting cpu 21 requesting proc 1 addr 0xffffffff81c4e4e8 
+ MP success 0 home proc -14 requesting cpu 2 requesting proc 0 addr 0xfeb8f0d0 
+ MP success 0 home proc -14 requesting cpu 28 requesting proc 0 addr 0xfeb852c0 
+ MP success 0 home proc -14 requesting cpu 30 requesting proc 0 addr 0xffff880813eb8354 
+ MP success 0 home proc -14 requesting cpu 22 requesting proc 1 addr 0xffffffff81c4e6a0 
+ MP success 0 home proc -14 requesting cpu 19 requesting proc 1 addr 0xffffffff81c19c10 
+ MP success 0 home proc -14 requesting cpu 20 requesting proc 1 addr 0xfeb84b40 
+ MP success 0 home proc -14 requesting cpu 18 requesting proc 1 addr 0xffff88081f74e6d0 
+ MP success 0 home proc -14 requesting cpu 26 requesting proc 0 addr 0xffff88101ef4e9a8 
+ MP success 0 home proc -14 requesting cpu 2 requesting proc 0 addr 0xfeb8ee90 
+ MP success 0 home proc -14 requesting cpu 5 requesting proc 0 addr 0xffff88081f6b3e80 
+ MP success 0 home proc -14 requesting cpu 26 requesting proc 0 addr 0xffff88101ef54f40 
+ MP success 0 home proc -14 requesting cpu 6 requesting proc 0 addr 0xfeb8eec0 
+ MP success 0 home proc -14 requesting cpu 6 requesting proc 0 addr 0xfeb8ef00 
+ MP success 0 home proc -14 requesting cpu 22 requesting proc 1 addr 0xffff88081f7d13f0 
+ MP success 0 home proc -14 requesting cpu 31 requesting proc 0 addr 0xffff88101efee960 
+ MP success 0 home proc -14 requesting cpu 23 requesting proc 1 addr 0xfeb96980 
+ MP success 0 home proc -14 requesting cpu 22 requesting proc 1 addr 0xffff880813976708 
+ MP success 0 home proc -14 requesting cpu 29 requesting proc 0 addr 0xffff88101efb4f10 
+ MP success 0 home proc -14 requesting cpu 28 requesting proc 0 addr 0xffffffff8180f368 
+ MP success 0 home proc -14 requesting cpu 19 requesting proc 1 addr 0xffffffff81f26218 
+ MP success 0 home proc -14 requesting cpu 15 requesting proc 1 addr 0xfeb94f00 
+ MP success 0 home proc -14 requesting cpu 31 requesting proc 0 addr 0xfeb96a60 
+ MP success 0 home proc -14 requesting cpu 24 requesting proc 0 addr 0xffff88101ef0c6c8 
+ MP success 0 home proc -14 requesting cpu 26 requesting proc 0 addr 0xffff88101ef4e518 
+ MP success 0 home proc -14 requesting cpu 22 requesting proc 1 addr 0xffff88081f021a00 
+ MP success 0 home proc -14 requesting cpu 27 requesting proc 0 addr 0xfeb96a60 
+ MP success 0 home proc -14 requesting cpu 3 requesting proc 0 addr 0xffff88081f66cbf0 
+ MP success 0 home proc -14 requesting cpu 5 requesting proc 0 addr 0xffff88081f6b0220 
+ MP success 0 home proc -14 requesting cpu 31 requesting proc 0 addr 0xfeb96b00 
+ MP success 0 home proc -14 requesting cpu 7 requesting proc 0 addr 0xffff88081f6ec6c8 
+ MP success 0 home proc -14 requesting cpu 13 requesting proc 1 addr 0xffff88101eeae518 
+ MP success 0 home proc -14 requesting cpu 7 requesting proc 0 addr 0xffffffff81c9dd48 
+ MP success 0 home proc -14 requesting cpu 27 requesting proc 0 addr 0xffff88101ef73e80 
+ MP success 0 home proc -14 requesting cpu 31 requesting proc 0 addr 0xffff88101eff3e80 
+ MP success 0 home proc -14 requesting cpu 24 requesting proc 0 addr 0xffff88101ef14f10 
+ MP success 0 home proc -14 requesting cpu 6 requesting proc 0 addr 0xffff88081f6cc6c8 
+ MP success 0 home proc -14 requesting cpu 22 requesting proc 1 addr 0xffff88081f7ceef0 
+ MP success 0 home proc -14 requesting cpu 8 requesting proc 1 addr 0xfeb82000 
+ MP success 0 home proc -14 requesting cpu 10 requesting proc 1 addr 0xffff880813e7bc54 
+ MP success 0 home proc -14 requesting cpu 6 requesting proc 0 addr 0xffff88081f6d5090 
+ MP success 0 home proc -14 requesting cpu 29 requesting proc 0 addr 0xffffffff81c9de40 
+ MP success 0 home proc -14 requesting cpu 25 requesting proc 0 addr 0xffffffff81c9dd48 
+ MP success 0 home proc -14 requesting cpu 31 requesting proc 0 addr 0xffffe8ffff7e0940 
+ MP success 0 home proc -14 requesting cpu 23 requesting proc 1 addr 0xffff881010c80f40 
+ MP success 0 home proc -14 requesting cpu 16 requesting proc 1 addr 0xfeb84b00 
+ MP success 0 home proc -14 requesting cpu 31 requesting proc 0 addr 0xffffffff81c9dcf0 
+ MP success 0 home proc -14 requesting cpu 26 requesting proc 0 addr 0xffffffff81c9dd48 
+ MP success 0 home proc -14 requesting cpu 4 requesting proc 0 addr 0xffff880813e78510 
+ MP success 0 home proc -14 requesting cpu 18 requesting proc 1 addr 0xffffffff81c9dfc8 
+ MP success 0 home proc -14 requesting cpu 8 requesting proc 1 addr 0xffff88101ee0cbf0 
+ MP success 0 home proc -14 requesting cpu 8 requesting proc 1 addr 0xffff88101ee0dcc0 
+ MP success 0 home proc -14 requesting cpu 6 requesting proc 0 addr 0xffff881010084b40 
+ MP success 0 home proc -14 requesting cpu 8 requesting proc 1 addr 0xffff880813e7ab10 
+ MP success 0 home proc -14 requesting cpu 0 requesting proc 0 addr 0xffff88081f617f70 
+ MP success 0 home proc -14 requesting cpu 31 requesting proc 0 addr 0xffffffff81c9dcf0 
+ *** iter 2645 
+
+ Remote to overall access ratio  
+ 53 / 56  
+ 31 / 31  
+ 197 / 201  
+ 68 / 72  
+ 57 / 58  
+ 80 / 81  
+ 66 / 66  
+ 45 / 48  
+ 33 / 35  
+ 32 / 33  
+ 31 / 31  
+ 39 / 39  
+ 57 / 59  
+ 48 / 50  
+ 0 / 0  
+ 61 / 61  
+ 162 / 164  
+ 0 / 0  
+ 97 / 102  
+ 28 / 30  
+ 36 / 36  
+ 32 / 33  
+ 83 / 88  
+ 232 / 235  
+ 76 / 77  
+ 72 / 77  
+ 93 / 97  
+ 102 / 109  
+ 57 / 60  
+ 100 / 106  
+ 182 / 192  
+control htable 
+MP success 0 home proc -14 requesting cpu 30 requesting proc 0 addr 0xffffffff81c519e0 
+ MP success 0 home proc -14 requesting cpu 30 requesting proc 0 addr 0xffff880813eb6014 
+ MP success 0 home proc -14 requesting cpu 18 requesting proc 1 addr 0xffffffff8200aac8 
+ MP success 0 home proc -14 requesting cpu 22 requesting proc 1 addr 0xffffe8f7fffc0998 
+ MP success 0 home proc -14 requesting cpu 28 requesting proc 0 addr 0xffff88101ef8c7b0 
+ MP success 0 home proc -14 requesting cpu 26 requesting proc 0 addr 0xffffe8ffff740998 
+ MP success 0 home proc -14 requesting cpu 0 requesting proc 0 addr 0xffffe8f7ffe00990 
+ MP success 0 home proc -14 requesting cpu 7 requesting proc 0 addr 0xffff88081f6ec7b0 
+ MP success 0 home proc -14 requesting cpu 30 requesting proc 0 addr 0xffff88101efcc7b0 
+ MP success 0 home proc -14 requesting cpu 30 requesting proc 0 addr 0xffff881010084ac0 
+ MP success 0 home proc -14 requesting cpu 25 requesting proc 0 addr 0xffffffff81c4b3c0 
+ MP success 0 home proc -14 requesting cpu 27 requesting proc 0 addr 0xffffffff81c05180 
+ MP success 0 home proc -14 requesting cpu 29 requesting proc 0 addr 0xffff881013b86f48 
+ MP success 0 home proc -14 requesting cpu 22 requesting proc 1 addr 0xffff880813ea6014 
+ MP success 0 home proc -14 requesting cpu 22 requesting proc 1 addr 0xffffffff81c519e0 
+ MP success 0 home proc -14 requesting cpu 18 requesting proc 1 addr 0xffffffff81d01200 
+ MP success 0 home proc -14 requesting cpu 19 requesting proc 1 addr 0xffffffff81c4a640 
+ MP success 0 home proc -14 requesting cpu 8 requesting proc 1 addr 0xfeb83080 
+ MP success 0 home proc -14 requesting cpu 29 requesting proc 0 addr 0xfeb8b080 
+ MP success 0 home proc -14 requesting cpu 3 requesting proc 0 addr 0xfeb95100 
+ MP success 0 home proc -14 requesting cpu 29 requesting proc 0 addr 0xfeb8a840 
+ MP success 0 home proc -14 requesting cpu 3 requesting proc 0 addr 0xfeb94f40 
+ MP success 0 home proc -14 requesting cpu 23 requesting proc 1 addr 0xfeb96e40 
+ MP success 0 home proc -14 requesting cpu 30 requesting proc 0 addr 0xffff88101efce518 
+ MP success 0 home proc -14 requesting cpu 3 requesting proc 0 addr 0xfeb950b0 
+ MP success 0 home proc -14 requesting cpu 0 requesting proc 0 addr 0xffff88081f614f40 
+ MP success 0 home proc -14 requesting cpu 26 requesting proc 0 addr 0xffff88101ef54f40 
+ MP success 0 home proc -14 requesting cpu 4 requesting proc 0 addr 0xffff88081f690220 
+ MP success 0 home proc -14 requesting cpu 12 requesting proc 1 addr 0xffff88101ee8d110 
+ MP success 0 home proc -14 requesting cpu 26 requesting proc 0 addr 0xfeb90840 
+ MP success 0 home proc -14 requesting cpu 25 requesting proc 0 addr 0xffff881010dda0d8 
+ MP success 0 home proc -14 requesting cpu 30 requesting proc 0 addr 0xffffffff81c9dda0 
+ MP success 0 home proc -14 requesting cpu 7 requesting proc 0 addr 0xffff88081f6f1af0 
+ MP success 0 home proc -14 requesting cpu 2 requesting proc 0 addr 0xffff880813a2a870 
+ MP success 0 home proc -14 requesting cpu 26 requesting proc 0 addr 0xffff88101ef4e960 
+ MP success 0 home proc -14 requesting cpu 16 requesting proc 1 addr 0xfeb84a60 
+ MP success 0 home proc -14 requesting cpu 2 requesting proc 0 addr 0xfeb8ef90 
+ MP success 0 home proc -14 requesting cpu 2 requesting proc 0 addr 0xfeb8f784 
+ MP success 0 home proc -14 requesting cpu 27 requesting proc 0 addr 0xffffffff81c9dd3c 
+ MP success 0 home proc -14 requesting cpu 18 requesting proc 1 addr 0xffff880813e98cd4 
+ MP success 0 home proc -14 requesting cpu 22 requesting proc 1 addr 0xffff88081f021a00 
+ MP success 0 home proc -14 requesting cpu 29 requesting proc 0 addr 0xffff880fb3d27740 
+ MP success 0 home proc -14 requesting cpu 29 requesting proc 0 addr 0xfeb8a940 
+ MP success 0 home proc -14 requesting cpu 3 requesting proc 0 addr 0xffff88081f66b01c 
+ MP success 0 home proc -14 requesting cpu 23 requesting proc 1 addr 0xfeb971c0 
+ MP success 0 home proc -14 requesting cpu 25 requesting proc 0 addr 0xfeb8aa80 
+ MP success 0 home proc -14 requesting cpu 19 requesting proc 1 addr 0xfeb971c0 
+ MP success 0 home proc -14 requesting cpu 31 requesting proc 0 addr 0xffffffff81d023a0 
+ MP success 0 home proc -14 requesting cpu 8 requesting proc 1 addr 0xffff88101ee10220 
+ MP success 0 home proc -14 requesting cpu 30 requesting proc 0 addr 0xffff88101efd7ef0 
+ MP success 0 home proc -14 requesting cpu 18 requesting proc 1 addr 0xfeb90a60 
+ MP success 0 home proc -14 requesting cpu 23 requesting proc 1 addr 0xfeb97244 
+ MP success 0 home proc -14 requesting cpu 28 requesting proc 0 addr 0xffffffff81c9de40 
+ MP success 0 home proc -14 requesting cpu 12 requesting proc 1 addr 0xffff880813e7cf54 
+ MP success 0 home proc -14 requesting cpu 29 requesting proc 0 addr 0xffff88101efaeae8 
+ MP success 0 home proc -14 requesting cpu 27 requesting proc 0 addr 0xfeb96940 
+ MP success 0 home proc -14 requesting cpu 27 requesting proc 0 addr 0xfeb97280 
+ MP success 0 home proc -14 requesting cpu 16 requesting proc 1 addr 0xfeb84980 
+ MP success 0 home proc -14 requesting cpu 30 requesting proc 0 addr 0xffff88101efd3e80 
+ MP success 0 home proc -14 requesting cpu 2 requesting proc 0 addr 0xffff88081f64e960 
+ MP success 0 home proc -14 requesting cpu 25 requesting proc 0 addr 0xffff88101ef2a010 
+ MP success 0 home proc -14 requesting cpu 9 requesting proc 1 addr 0xffff88101ee313f0 
+ MP success 0 home proc -14 requesting cpu 13 requesting proc 1 addr 0xffff88101eeaeef0 
+ MP success 0 home proc -14 requesting cpu 31 requesting proc 0 addr 0xffffffff81d090bc 
+ MP success 0 home proc -14 requesting cpu 24 requesting proc 0 addr 0xffff88101ef0cbf0 
+ MP success 0 home proc -14 requesting cpu 31 requesting proc 0 addr 0xffff881010084b40 
+ MP success 0 home proc -14 requesting cpu 27 requesting proc 0 addr 0xffffffff81d02534 
+ MP success 0 home proc -14 requesting cpu 7 requesting proc 0 addr 0xffffffff81f26218 
+ MP success 0 home proc -14 requesting cpu 31 requesting proc 0 addr 0xffff88101efeeef0 
+ MP success 0 home proc -14 requesting cpu 27 requesting proc 0 addr 0xffffffff81c9dda0 
+ MP success 0 home proc -14 requesting cpu 28 requesting proc 0 addr 0xffff88101ef8dcc0 
+ MP success 0 home proc -14 requesting cpu 27 requesting proc 0 addr 0xffff88101ef6eef0 
+ MP success 0 home proc -14 requesting cpu 21 requesting proc 1 addr 0xffffffff81c9de40 
+ MP success 0 home proc -14 requesting cpu 0 requesting proc 0 addr 0xffff88081f60c6c8 
+ MP success 0 home proc -14 requesting cpu 18 requesting proc 1 addr 0xffff88081f74c6c8 
+ MP success 0 home proc -14 requesting cpu 25 requesting proc 0 addr 0xffffffff81d02534 
+ MP success 0 home proc -14 requesting cpu 22 requesting proc 1 addr 0xffff88081f7ce960 
+ MP success 0 home proc -14 requesting cpu 13 requesting proc 1 addr 0xffff88101eeb0220 
+ MP success 0 home proc -14 requesting cpu 30 requesting proc 0 addr 0xffff88101efca010 
+ MP success 0 home proc -14 requesting cpu 30 requesting proc 0 addr 0xffffffff81c9de40 
+ MP success 0 home proc -14 requesting cpu 31 requesting proc 0 addr 0xffff880813eb8e90 
+ MP success 0 home proc -14 requesting cpu 5 requesting proc 0 addr 0xffff88081f6ae518 
+ *** iter 2743 

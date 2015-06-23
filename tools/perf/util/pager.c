@@ -47,7 +47,7 @@ static void wait_for_pager_signal(int signo)
 void setup_pager(void)
 {
 	const char *pager = getenv("PERF_PAGER");
-
+	return;
 	if (!isatty(1))
 		return;
 	if (!pager) {

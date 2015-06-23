@@ -3,27 +3,27 @@
 #include "symbol.h"
 #include "numa_metrics.h"
 #include <numaif.h>
-#include <linux/hashtable.h>
 #include <time.h>
 #include <signal.h>
 #include <omp.h>
-
+#include <uthash.h>
 
 int get_access_type(struct hists *hists, struct hist_entry *entry,int pid){
 	
 	u64 addr,mask;
-	int count,*nodes,node;
+	int count,*nodes,node,calling_cpu,home_count, remote_count;
 	void *page, **pages;
 	int* status,st;
 	long ret;
+	struct page_stats *sear,*hashtable;
 	
 	st=-1;
 	
 	if (!entry->mem_info)
 		return -1;
-		
+
 	addr= entry->mem_info->daddr.addr;
-	
+		
 	//Assuming page size is 4K the 12 LSBs are discharged to 
 	//obtain the page number
 	mask= 0xFFF; // 12 bytes
@@ -35,6 +35,12 @@ int get_access_type(struct hists *hists, struct hist_entry *entry,int pid){
 	pages=&page;
 	status=&st;
 	
+	hashtable=hists->multiproc_traffic->page_accesses;
+	HASH_FIND_PTR( hashtable,&page,sear );
+	if(!sear) return;
+	
+	printf("%p %d %d **", sear->page_addr ,sear->proc0_acceses,sear->proc1_acceses );
+	
 	ret= move_pages(pid, count, pages, nodes, status,0);
 	printf ("MP success %d home proc %d requesting cpu %d requesting proc %d addr %p \n ",ret, status[0],
 	entry->cpu,hists->multiproc_traffic->cpu_to_processor[entry->cpu],entry->mem_info->daddr.addr );	
@@ -42,9 +48,16 @@ int get_access_type(struct hists *hists, struct hist_entry *entry,int pid){
 	if (ret != 0)
 		return;
 	//the home proc can only be different to the requesting proc and this home proc must be 0 or 1
-	if (hists->multiproc_traffic->cpu_to_processor[entry->cpu] == st || st < 0 || st>1  )
+	calling_cpu=hists->multiproc_traffic->cpu_to_processor[entry->cpu];
+	if ( calling_cpu== st || st < 0 || st>1  )
 		return;
 		
+	//the page is only moved if the number of accesses from the calling processor is greater than on the home
+	home_count= status[0]==0 ? sear->proc0_acceses : sear->proc1_acceses;
+	remote_count= status[0]==0 ? sear->proc1_acceses : sear->proc0_acceses;
+	
+	if(	remote_count <= home_count) return;
+	
 	//determine the new home processor
 	node = hists->multiproc_traffic->cpu_to_processor[entry->cpu]; 
 	nodes=&node;
@@ -268,40 +281,31 @@ void init_processor_mapping(struct numa_metrics *multiproc_info){
 	multiproc_info->cpu_to_processor[i]=map[i];
 }
 
-struct page_stats *search_access(struct numa_metrics *multiproc_info, unsigned int key){
-	struct page_stats *cursor;
-	hash_for_each_possible(multiproc_info->page_acceses, cursor, my_hash_list, key){
-		if(cursor->page_addr==key)
-			printf("%p ",cursor);
-			return cursor;
-	}	
-	printf("end se ");
-	return NULL;
-}
-
-int process_adress(void * addr){
-	u64 val=0;
-	val=addr;
-	return (int) val;
-}
 
 void add_mem_access( struct numa_metrics *multiproc_info, void *page_addr, int accessing_cpu){
 	struct page_stats *current=NULL; 
+	struct page_stats *cursor=NULL; 
 	int proc;
 	int hm;
 	int ad;
 	
 	//search the node for apparances
-	current=search_access(multiproc_info, page_addr);
+
+	HASH_FIND_PTR(multiproc_info->page_accesses, &page_addr,current);
 	proc=multiproc_info->cpu_to_processor[accessing_cpu];
 	if (current==NULL){
 		current=malloc(sizeof(struct page_stats));
 		current->proc0_acceses=0;
 		current->proc1_acceses=0;
-		current->page_addr=process_adress(page_addr);
-		hm=hash_min(current->page_addr, HASH_BITS(multiproc_info->page_acceses));
-		printf ("hm %d %p %d \n", hm,current->page_addr, HASH_BITS(multiproc_info->page_acceses) );
-		hash_add(multiproc_info->page_acceses, &(current->my_hash_list), current->page_addr);
+		
+		current->page_addr=page_addr;
+		
+		HASH_ADD_PTR(multiproc_info->page_accesses,page_addr,current);
+		//printf ("add %d \n",HASH_COUNT(multiproc_info->page_accesses));
+		
+		for(cursor=multiproc_info->page_accesses; cursor != NULL; cursor=cursor->hh.next) {
+        //printf("%p\n", cursor->page_addr);
+		}
 	}
 	
 	if (proc==0){

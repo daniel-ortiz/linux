@@ -1,21 +1,21 @@
 #ifndef __NUMAMM_HIST_H
 #define __NUMAMM_HIST_H
 
-#include <linux/hashtable.h>
+#include <uthash.h>
 struct numa_metrics {
 	int n_cpus;
 	int pid_uo;
 	int remote_accesses[32];
 	int process_accesses[32];
 	int cpu_to_processor[32];
-	DECLARE_HASHTABLE(page_acceses, 7);
+	struct page_stats *page_accesses;
 };
 
 struct page_stats{
 	int proc0_acceses;
 	int proc1_acceses;
-	unsigned int page_addr;
-	struct hlist_node my_hash_list ; 
+	void* page_addr;
+	UT_hash_handle hh;
 };
 
 int get_access_type(struct hists *hists, struct hist_entry *entry,int pid);
