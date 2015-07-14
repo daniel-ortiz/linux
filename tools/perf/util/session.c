@@ -15,6 +15,8 @@
 #include "cpumap.h"
 #include "perf_regs.h"
 #include "vdso.h"
+#include "util/data.h"
+
 
 static int perf_session__open(struct perf_session *session)
 {
@@ -492,6 +494,7 @@ static int flush_sample_queue(struct perf_session *s,
 		ui_progress__init(&prog, os->nr_samples, "Processing time ordered events...");
 
 	list_for_each_entry_safe(iter, tmp, head, list) {
+		printf("os iter"); 
 		if (session_done())
 			return 0;
 
@@ -905,6 +908,7 @@ perf_session__deliver_sample(struct perf_session *session,
 			     struct perf_evsel *evsel,
 			     struct machine *machine)
 {
+	
 	/* We know evsel != NULL. */
 	u64 sample_type = evsel->attr.sample_type;
 	u64 read_format = evsel->attr.read_format;
@@ -930,7 +934,7 @@ static int perf_session_deliver_event(struct perf_session *session,
 {
 	struct perf_evsel *evsel;
 	struct machine *machine;
-
+	int ret=-5;
 	dump_event(session, event, file_offset, sample);
 
 	evsel = perf_evlist__id2evsel(session->evlist, sample->id);
@@ -953,7 +957,6 @@ static int perf_session_deliver_event(struct perf_session *session,
 
 	machine = perf_session__find_machine_for_cpumode(session, event,
 							 sample);
-
 	switch (event->header.type) {
 	case PERF_RECORD_SAMPLE:
 		dump_sample(evsel, event, sample);
@@ -965,8 +968,9 @@ static int perf_session_deliver_event(struct perf_session *session,
 			++session->stats.nr_unprocessable_samples;
 			return 0;
 		}
-		return perf_session__deliver_sample(session, tool, event,
+		ret= perf_session__deliver_sample(session, tool, event,
 						    sample, evsel, machine);
+		return ret;
 	case PERF_RECORD_MMAP:
 		return tool->mmap(tool, event, sample, machine);
 	case PERF_RECORD_MMAP2:
@@ -1059,14 +1063,18 @@ static int perf_session__process_event(struct perf_session *session,
 	 * For all kernel events we get the sample data
 	 */
 	ret = perf_evlist__parse_sample(session->evlist, event, &sample);
+
 	if (ret)
 		return ret;
 
 	if (tool->ordered_samples) {
-		ret = perf_session_queue_event(session, event, &sample,
-					       file_offset);
-		if (ret != -ETIME)
-			return ret;
+		//ret = perf_session_queue_event(session, event, &sample,
+					       //file_offset);
+		//if (ret != -ETIME){
+			//printf(" queued %d  ", ret);
+			//return ret;
+		//}
+		
 	}
 
 	return perf_session_deliver_event(session, event, &sample, tool,
@@ -1146,7 +1154,7 @@ static int __perf_session__process_pipe_events(struct perf_session *session,
 	union perf_event *event;
 	uint32_t size, cur_size = 0;
 	void *buf = NULL;
-	int skip = 0;
+	int skip = 0, posc=0;
 	u64 head;
 	ssize_t err;
 	void *p;
@@ -1175,6 +1183,7 @@ more:
 
 	size = event->header.size;
 	if (size < sizeof(struct perf_event_header)) {
+		posc=lseek(fd,0,SEEK_CUR);
 		pr_err("bad event header size\n");
 		goto out_err;
 	}
@@ -1217,11 +1226,12 @@ more:
 	if (skip > 0)
 		head += skip;
 
-	if (!session_done())
+	if (!session_done() && head < 0xa1450)
 		goto more;
 done:
 	/* do the final flush for ordered samples */
 	session->ordered_samples.next_flush = ULLONG_MAX;
+
 	err = flush_sample_queue(session, tool);
 out_err:
 	free(buf);
@@ -1371,16 +1381,22 @@ int perf_session__process_events(struct perf_session *session,
 {
 	u64 size = perf_data_file__size(session->file);
 	int err;
+	int pos=0,eno,k,of;
 
 	if (perf_session__register_idle_thread(session) == NULL)
 		return -ENOMEM;
 
-	if (!perf_data_file__is_pipe(session->file))
-		err = __perf_session__process_events(session,
-						     session->header.data_offset,
-						     session->header.data_size,
-						     size, tool);
-	else
+	//if (!perf_data_file__is_pipe(session->file))
+		//err = __perf_session__process_events(session,
+			//			     session->header.data_offset,
+		//				     session->header.data_size,
+	//					     size, tool);
+	//else
+		//of=open(session->file->path, O_RDONLY);
+		//session->file.fd=of;
+		pos=lseek(perf_data_file__fd(session->file), 0xd8,SEEK_SET);
+		eno=errno;
+		k= eno == EBADF;
 		err = __perf_session__process_pipe_events(session, tool);
 
 	return err;

@@ -1272,8 +1272,10 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 	data->addr = 0;
 	if (type & PERF_SAMPLE_ADDR) {
 		data->addr = *array;
+		//printf(" sample %p \n", data->addr );
 		array++;
-	}
+	} 
+	
 
 	if (type & PERF_SAMPLE_ID) {
 		data->id = *array;

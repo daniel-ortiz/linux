@@ -749,8 +749,12 @@ static void perf_event__process_sample(struct perf_tool *tool,
 						top->max_stack);
 		if (err)
 			return;
-
+			
+		printf("sample src %lu  \n",sample->data_src);
+		printf("sample addr %lu \n", sample->weight);
+		printf("sample %p\n", sample->addr);
 		he = perf_evsel__add_hist_entry(evsel, &al, sample);
+		
 		if (he == NULL) {
 			pr_err("Problem incrementing symbol period, skipping event\n");
 			return;
@@ -1099,6 +1103,11 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "Interleave source code with assembly code (default)"),
 	OPT_BOOLEAN(0, "asm-raw", &symbol_conf.annotate_asm_raw,
 		    "Display raw encoding of assembly instructions (default)"),
+	OPT_BOOLEAN('W', "weight", &top.record_opts.sample_weight,
+		    "sample by weight (on special events only)"),
+	OPT_BOOLEAN('X', "data", &top.record_opts.sample_address,
+		    "Sample addresses"),
+		    
 	OPT_STRING(0, "objdump", &objdump_path, "path",
 		    "objdump binary to use for disassembly and annotations"),
 	OPT_STRING('M', "disassembler-style", &disassembler_style, "disassembler style",

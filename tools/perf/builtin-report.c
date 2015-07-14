@@ -115,6 +115,7 @@ static int report__add_mem_hist_entry(struct perf_tool *tool, struct addr_locati
 
 	if (ui__has_annotation()) {
 		err = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
+		
 		if (err)
 			goto out;
 
@@ -166,6 +167,7 @@ static int report__add_branch_hist_entry(struct perf_tool *tool, struct addr_loc
 		he = __hists__add_entry(&evsel->hists, al, parent, &bi[i], NULL,
 					1, 1, 0);
 		if (he) {
+			
 			if (ui__has_annotation()) {
 				bx = he->branch_info;
 				err = addr_map_symbol__inc_samples(&bx->from,

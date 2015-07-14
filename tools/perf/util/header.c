@@ -2782,7 +2782,7 @@ int perf_session__read_header(struct perf_session *session)
 			   file->path);
 	}
 
-	nr_attrs = f_header.attrs.size / f_header.attr_size;
+	nr_attrs = f_header.attrs.size / f_header. attr_size;
 	lseek(fd, f_header.attrs.offset, SEEK_SET);
 
 	for (i = 0; i < nr_attrs; i++) {
