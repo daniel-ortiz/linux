@@ -41,6 +41,7 @@
 #include "util/sort.h"
 #include "util/intlist.h"
 #include "arch/common.h"
+#include "util/numa_metrics.h"
 
 #include "util/debug.h"
 
@@ -633,6 +634,8 @@ repeat:
 	return NULL;
 }
 
+
+
 static int symbol_filter(struct map *map __maybe_unused, struct symbol *sym)
 {
 	const char *name = sym->name;
@@ -669,7 +672,12 @@ static void perf_event__process_sample(struct perf_tool *tool,
 	struct symbol *parent = NULL;
 	u64 ip = sample->ip;
 	struct addr_location al;
-	int err;
+	int err,migrate_res;
+	//numa-an
+	union perf_mem_data_src data_src;
+	int filter_access=0;
+	u64 mask=0xFFF, page_addr;
+	struct numa_metrics *nm;
 
 	if (!machine && perf_guest) {
 		static struct intlist *seen;
@@ -749,7 +757,39 @@ static void perf_event__process_sample(struct perf_tool *tool,
 						top->max_stack);
 		if (err)
 			return;
-
+	
+		//numa-an kicks in here to examine the samples we are interested in
+		if (top->numa_migrate_mode && sample->pid == (unsigned int)top->numa_migrate_pid_filter){
+			
+			//get the type of access
+			data_src.val = sample->data_src;
+			filter_access=filter_local_accesses(&data_src);
+			
+			
+			if(sample->cpu>=0 && sample->cpu <31 ){
+				//statistics and hash table
+				top->numa_metrics->process_accesses[sample->cpu]++;
+				page_addr=sample->addr & ~mask ;
+				nm=top->numa_metrics;
+				add_mem_access( nm, page_addr, sample->cpu);
+				
+				if(top->numa_migrate_logdetail>5)
+					printf("Access detected addr %p filter %d cpu %d weight %d \n", 
+				page_addr,filter_access, sample->cpu, sample->weight);
+				
+				if(top->migrate_track_levels){
+					 add_lvl_access( nm, &data_src );
+				}
+			}
+			//we care about return value 0
+			if(!filter_access){
+				top->numa_metrics->remote_accesses[sample->cpu]++;
+				migrate_res=do_migration(nm, (unsigned int)top->numa_migrate_pid_filter, sample);
+			}
+		              
+		}
+		
+		
 		he = perf_evsel__add_hist_entry(evsel, &al, sample);
 		if (he == NULL) {
 			pr_err("Problem incrementing symbol period, skipping event\n");
@@ -903,7 +943,21 @@ static int __cmd_top(struct perf_top *top)
 	struct record_opts *opts = &top->record_opts;
 	pthread_t thread;
 	int ret;
+	
+	struct numa_metrics* nm;
+	
+	//Numa-migrate stuff is initialized here
+	nm=malloc(sizeof(struct numa_metrics));
+	memset(nm, 0, sizeof(struct numa_metrics));
+	nm->page_accesses=NULL;
+	nm->lvl_accesses=NULL;
+	nm->logging_detail_level=top->numa_migrate_logdetail;
+	nm->moved_pages=0;
+	top->numa_metrics=nm;
+	
+	init_processor_mapping(nm);
 
+	
 	top->session = perf_session__new(NULL, false, NULL);
 	if (top->session == NULL)
 		return -ENOMEM;
@@ -973,6 +1027,10 @@ static int __cmd_top(struct perf_top *top)
 
 	ret = 0;
 out_delete:
+	print_migration_statistics(top->numa_metrics);
+	if(top->migrate_track_levels){
+		print_access_info(top->numa_metrics);
+	}
 	perf_session__delete(top->session);
 	top->session = NULL;
 
@@ -1010,6 +1068,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	struct perf_top top = {
 		.count_filter	     = 5,
 		.delay_secs	     = 2,
+		.numa_migrate_mode =false,
 		.record_opts = {
 			.mmap_pages	= UINT_MAX,
 			.user_freq	= UINT_MAX,
@@ -1103,9 +1162,21 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "objdump binary to use for disassembly and annotations"),
 	OPT_STRING('M', "disassembler-style", &disassembler_style, "disassembler style",
 		   "Specify disassembler style (e.g. -M intel for intel syntax)"),
+	OPT_BOOLEAN('0', "numa-migrate", &top.numa_migrate_mode,
+			    "Enable the activation of the numa migrate node"),
+	OPT_INTEGER('0', "weighmin", &top.record_opts.weight_min_threshold,
+		    "Specifies a minimum threshold for the load latency weight"),
+	OPT_INTEGER('0', "numa-repdetail", &top.numa_migrate_logdetail,
+		    "Specifies the detail of information to show"),
+	OPT_INTEGER('0', "npid", &top.numa_migrate_pid_filter,
+		    "Process id that numa-an will watch"),
 	OPT_STRING('u', "uid", &target->uid_str, "user", "user to profile"),
 	OPT_CALLBACK(0, "percent-limit", &top, "percent",
 		     "Don't show entries under that percent", parse_percent_limit),
+	OPT_BOOLEAN('0', "mig-just-measure", &top.migrate_just_measure,
+		     "Disable the page migration and just gather statistics"),
+	OPT_BOOLEAN('0', "track-accesslvls", &top.migrate_track_levels,
+		     "In combination with numa-migrate keeps track of the number of accesses per access level "),
 	OPT_END()
 	};
 	const char * const top_usage[] = {
@@ -1197,7 +1268,12 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 		perf_top__update_print_entries(&top);
 		sigaction(SIGWINCH, &act, NULL);
 	}
-
+	if (top.numa_migrate_mode==true){
+		printf("numa migrate enabled\n");
+		top.record_opts.sample_weight=true;
+		top.record_opts.sample_address=true;
+		
+	}
 	status = __cmd_top(&top);
 
 out_delete_evlist:

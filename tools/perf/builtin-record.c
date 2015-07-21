@@ -894,6 +894,8 @@ const struct option record_options[] = {
 		    "sample transaction flags (special events only)"),
 	OPT_BOOLEAN(0, "per-thread", &record.opts.target.per_thread,
 		    "use per-thread mmaps"),
+	OPT_INTEGER('0', "weighmin", &record.opts.weight_min_threshold,
+		    "Specifies a minimum threshold for the load latency weight"),
 	OPT_END()
 };
 

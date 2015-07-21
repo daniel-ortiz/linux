@@ -8,7 +8,10 @@ struct numa_metrics {
 	int remote_accesses[32];
 	int process_accesses[32];
 	int cpu_to_processor[32];
+	int logging_detail_level;
 	struct page_stats *page_accesses;
+	struct access_stats *lvl_accesses;
+	int moved_pages;
 };
 
 struct page_stats{
@@ -17,6 +20,31 @@ struct page_stats{
 	void* page_addr;
 	UT_hash_handle hh;
 };
+
+struct access_stats{
+	int count;
+	int mem_lvl;
+	UT_hash_handle hh;
+};
+
+static const char * const mem_lvl[] = {
+	"N/A",
+	"HIT",
+	"MISS",
+	"L1",
+	"LFB",
+	"L2",
+	"L3",
+	"Local RAM",
+	"Remote RAM (1 hop)",
+	"Remote RAM (2 hops)",
+	"Remote Cache (1 hop)",
+	"Remote Cache (2 hops)",
+	"I/O",
+	"Uncached",
+};
+#define NUM_MEM_LVL (sizeof(mem_lvl)/sizeof(const char *))
+
 
 int do_migration(struct numa_metrics *nm, int pid, struct perf_sample *sample);
 
@@ -27,4 +55,10 @@ void add_mem_access( struct numa_metrics *multiproc_info, void *page_addr, int a
 int filter_local_accesses(union perf_mem_data_src *entry);
 
 void  print_migration_statistics(struct numa_metrics *nm);
+
+void add_lvl_access( struct numa_metrics *multiproc_info, union perf_mem_data_src *entry );
+	
+void print_access_info(struct numa_metrics *multiproc_info);
+
+char* print_access_type(int entry);
 #endif

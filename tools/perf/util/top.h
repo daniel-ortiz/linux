@@ -6,6 +6,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <termios.h>
+#include <uthash.h>
 
 struct perf_evlist;
 struct perf_evsel;
@@ -38,6 +39,13 @@ struct perf_top {
 	int		   sym_pcnt_filter;
 	const char	   *sym_filter;
 	float		   min_percent;
+	//numa-an
+	bool			numa_migrate_mode;
+	bool			migrate_just_measure;
+	bool			migrate_track_levels;
+	int				numa_migrate_pid_filter;
+	int				numa_migrate_logdetail;
+	struct numa_metrics *numa_metrics;
 };
 
 #define CONSOLE_CLEAR "[H[2J"

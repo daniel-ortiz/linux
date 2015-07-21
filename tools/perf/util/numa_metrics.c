@@ -12,15 +12,17 @@
 void print_migration_statistics(struct numa_metrics *nm){
 	//TODO number cpus
 	int i=0, total_accesses=0, remote_accesses=0;
-	
+	float rem2loc =0;
 	for(i=0; i<32; i++){
 		total_accesses+= nm->process_accesses[i];
 		remote_accesses+= nm->remote_accesses[i];
 	}
-	
+	total_accesses= total_accesses==0 ? 1 : total_accesses;
+	rem2loc=(100*(float)remote_accesses/(float)total_accesses); 
 	printf("\t\t MIGRATION STATISTICS \n");
 	
-	printf("%d	sampled accesses, remote accesses %d  - %f \n\n\n", total_accesses, remote_accesses,100*remote_accesses/total_accesses );
+	printf(" sampled accesses: %d\n remote accesses: %d \n pzn remote %f \n\n\n", total_accesses, remote_accesses,rem2loc);
+	printf(" moved pages: %d \n",nm->moved_pages);
 	
 	for(i=0; i<32; i++){
 		printf("CPU: %d	sampled: %d \t remote %d \n",i, nm->process_accesses[i], nm->remote_accesses[i]);
@@ -36,7 +38,7 @@ int do_migration(struct numa_metrics *nm, int pid, struct perf_sample *sample){
 	void *page, **pages;
 	int* status,st;
 	long ret;
-	struct page_stats *sear,*hashtable;
+	struct page_stats *sear=NULL,*hashtable;
 	union perf_mem_data_src data_src; 
 	
 	st=-1;
@@ -64,24 +66,45 @@ int do_migration(struct numa_metrics *nm, int pid, struct perf_sample *sample){
 	HASH_FIND_PTR( hashtable,&page,sear );
 	if(!sear) return 0;
 	
-	printf("Hash table lookup %p %d %d **", sear->page_addr ,sear->proc0_acceses,sear->proc1_acceses );
+	if(nm->logging_detail_level > 3)
+		printf("Hash table lookup %p %d %d **\n", sear->page_addr ,sear->proc0_acceses,sear->proc1_acceses );
 	
 	ret= move_pages(pid, count, pages, nodes, status,0);
 	
 	//only if the pages query is successful and the home node is different than the node that queries the address the page is migrated
-	if (ret != 0)
+	if (ret != 0){
+		if(nm->logging_detail_level > 3)	
+		printf ("Error on query\n");
 		return 0;
+		
+	}
 	//an only be different to the requesting proc and this home proc must be 0 or 1
 	calling_cpu=nm->cpu_to_processor[sample->cpu];
-	if ( calling_cpu== st || st < 0 || st>1  )
+	if ( calling_cpu== st ){
+		if(nm->logging_detail_level > 3)	
+		printf ("Page is already at requesting node (L3 hit) %d \n",status[0]);
 		return 0;
-	printf ("Move candidate:  home proc %d - requesting proc %d (core %d)\n ",
-	nodes[0], nm->cpu_to_processor[sample->cpu],sample->cpu);		
+		
+	}
+	if ( st < 0 || st>1  ){
+		if(nm->logging_detail_level > 3)	
+		printf ("Problematic status %d \n",status[0]);
+		return 0;
+		
+	}
+		
+	if(nm->logging_detail_level > 3)	
+		printf ("Move candidate:  home proc %d - requesting proc %d (core %d)\n ",
+	status[0], nm->cpu_to_processor[sample->cpu],sample->cpu);		
 	//the page is only moved if the number of accesses from the calling processor is greater than on the home
 	home_count= status[0]==0 ? sear->proc0_acceses : sear->proc1_acceses;
 	remote_count= status[0]==0 ? sear->proc1_acceses : sear->proc0_acceses;
 	
-	if(	remote_count <= home_count) return;
+	if(	remote_count <= home_count) {
+		if(nm->logging_detail_level > 3)	
+		printf ("Moving criteria not met\n");
+		return;
+	}
 	
 	//determine the new home processor
 	node = nm->cpu_to_processor[sample->cpu]; 
@@ -98,9 +121,12 @@ int do_migration(struct numa_metrics *nm, int pid, struct perf_sample *sample){
 	//we will query again for the home of the page
 	nodes=NULL;
 	ret= move_pages(pid, count, pages, nodes, status,0);
-	printf ("Page %p moved new home %d\n ",page,nodes[0] );	
+		if(nm->logging_detail_level > 3)
+		printf ("Page %p moved new home %d\n ",page,status[0] );	
+	if(ret==0 && status[0] >=0)
+		nm->moved_pages++;
 	return ret;
-	return 0;
+	
 }
 
 //used by numa-an to determine the type of access
@@ -159,6 +185,21 @@ void init_processor_mapping(struct numa_metrics *multiproc_info){
 	multiproc_info->cpu_to_processor[i]=map[i];
 }
 
+void add_lvl_access( struct numa_metrics *multiproc_info, union perf_mem_data_src *entry ){
+	struct access_stats *current=NULL;
+	int key=(int)entry->mem_lvl;
+	HASH_FIND_INT(multiproc_info->lvl_accesses, &key,current);
+	
+	if(!current){
+		current=malloc(sizeof(struct access_stats));
+		current->count=0;
+		current->mem_lvl=(int)entry->mem_lvl;
+		HASH_ADD_INT(multiproc_info->lvl_accesses,mem_lvl,current);
+	}
+	
+	current->count++;
+	
+}
 
 void add_mem_access( struct numa_metrics *multiproc_info, void *page_addr, int accessing_cpu){
 	struct page_stats *current=NULL; 
@@ -192,8 +233,51 @@ void add_mem_access( struct numa_metrics *multiproc_info, void *page_addr, int a
 	
 }
 
-void print_access_info(){
-	
+void print_access_info(struct numa_metrics *multiproc_info ){
+	struct access_stats *current=NULL,*tmp;
+	HASH_ITER(hh, multiproc_info->lvl_accesses, current, tmp) {
+		printf("access %d count %d %s \n", current->mem_lvl, current->count,print_access_type(current->mem_lvl) );
+	}
+}
+
+//This method is based on util/sort.c:hist_entry__lvl_snprintf
+char* print_access_type(int entry)
+{
+	char out[64];
+	size_t sz = sizeof(out) - 1; /* -1 for null termination */
+	size_t i, l = 0;
+	u64 m =  PERF_MEM_LVL_NA;
+	u64 hit, miss;
+
+
+	m  = (u64)entry;
+
+	out[0] = '\0';
+
+	hit = m & PERF_MEM_LVL_HIT;
+	miss = m & PERF_MEM_LVL_MISS;
+
+	/* already taken care of */
+	m &= ~(PERF_MEM_LVL_HIT|PERF_MEM_LVL_MISS);
+
+	for (i = 0; m && i < NUM_MEM_LVL; i++, m >>= 1) {
+		if (!(m & 0x1))
+			continue;
+		if (l) {
+			strcat(out, " or ");
+			l += 4;
+		}
+		strncat(out, mem_lvl[i], sz - l);
+		l += strlen(mem_lvl[i]);
+	}
+	if (*out == '\0')
+		strcpy(out, "N/A");
+	if (hit)
+		strncat(out, " hit", sz - l);
+	if (miss)
+		strncat(out, " miss", sz - l);
+
+	return  out;
 }
 
 

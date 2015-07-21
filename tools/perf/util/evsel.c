@@ -641,7 +641,12 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts)
 
 	attr->mmap  = track;
 	attr->comm  = track;
-
+	
+	//numa-migrate: filter the load latency record by weight
+	if(opts->weight_min_threshold >0){
+		attr->config1=opts->weight_min_threshold;
+	}
+	
 	if (opts->sample_transaction)
 		perf_evsel__set_sample_bit(evsel, TRANSACTION);
 
