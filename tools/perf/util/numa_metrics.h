@@ -45,6 +45,7 @@ static const char * const mem_lvl[] = {
 };
 #define NUM_MEM_LVL (sizeof(mem_lvl)/sizeof(const char *))
 
+void sort_entries(struct numa_metrics *nm);
 
 int do_migration(struct numa_metrics *nm, int pid, struct perf_sample *sample);
 

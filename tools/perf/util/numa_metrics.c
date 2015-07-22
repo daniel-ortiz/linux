@@ -10,6 +10,7 @@
 #include <uthash.h>
 
 void print_migration_statistics(struct numa_metrics *nm){
+	struct page_stats *current,*tmp;
 	//TODO number cpus
 	int i=0, total_accesses=0, remote_accesses=0;
 	float rem2loc =0;
@@ -28,6 +29,12 @@ void print_migration_statistics(struct numa_metrics *nm){
 		printf("CPU: %d	sampled: %d \t remote %d \n",i, nm->process_accesses[i], nm->remote_accesses[i]);
 	}
 	
+	sort_entries(nm);
+	HASH_ITER(hh, nm->page_accesses, current, tmp) {
+		//printf("access %p count %d %d \n", current->page_addr, current->proc0_acceses,current->proc1_acceses);
+	}
+	
+
 	
 }
 
@@ -280,5 +287,14 @@ char* print_access_type(int entry)
 	return  out;
 }
 
+long id_sort(struct page_stats *a, struct page_stats *b) {
+    long rst= (long )a->page_addr - (long)b->page_addr;
+    return rst;
+}
+
+void sort_entries(struct numa_metrics *nm){
+	printf("\n Sorting page access entries \n ...");
+	HASH_SORT( nm->page_accesses, id_sort );
+}
 
 

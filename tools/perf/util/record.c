@@ -150,24 +150,24 @@ static int record_opts__config_freq(struct record_opts *opts)
 	/*
 	 * User specified frequency is over current maximum.
 	 */
-	if (user_freq && (max_rate < opts->freq)) {
-		pr_err("Maximum frequency rate (%u) reached.\n"
-		   "Please use -F freq option with lower value or consider\n"
-		   "tweaking /proc/sys/kernel/perf_event_max_sample_rate.\n",
-		   max_rate);
-		return -1;
-	}
+	//if (user_freq && (max_rate < opts->freq)) {
+		//pr_err("Maximum frequency rate (%u) reached.\n"
+		   //"Please use -F freq option with lower value or consider\n"
+		   //"tweaking /proc/sys/kernel/perf_event_max_sample_rate.\n",
+		   //max_rate);
+		//return -1;
+	//}
 
 	/*
 	 * Default frequency is over current maximum.
-	 */
-	if (max_rate < opts->freq) {
-		pr_warning("Lowering default frequency rate to %u.\n"
-			   "Please consider tweaking "
-			   "/proc/sys/kernel/perf_event_max_sample_rate.\n",
-			   max_rate);
-		opts->freq = max_rate;
-	}
+	 //*/
+	//if (max_rate < opts->freq) {
+		//pr_warning("Lowering default frequency rate to %u.\n"
+			   //"Please consider tweaking "
+			   //"/proc/sys/kernel/perf_event_max_sample_rate.\n",
+			   //max_rate);
+		//opts->freq = max_rate;
+	//}
 
 	return 0;
 }
