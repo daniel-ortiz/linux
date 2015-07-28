@@ -31,10 +31,11 @@ void print_migration_statistics(struct numa_metrics *nm){
 	
 	sort_entries(nm);
 	HASH_ITER(hh, nm->page_accesses, current, tmp) {
-		//printf("access %p count %d %d \n", current->page_addr, current->proc0_acceses,current->proc1_acceses);
+		if(nm->report)
+			fprintf(nm->report,"Accessed %p count %d %d \n", current->page_addr, current->proc0_acceses,current->proc1_acceses);
 	}
 	
-
+	
 	
 }
 
@@ -242,8 +243,11 @@ void add_mem_access( struct numa_metrics *multiproc_info, void *page_addr, int a
 
 void print_access_info(struct numa_metrics *multiproc_info ){
 	struct access_stats *current=NULL,*tmp;
+	FILE *file=multiproc_info->report;
 	HASH_ITER(hh, multiproc_info->lvl_accesses, current, tmp) {
-		printf("access %d count %d %s \n", current->mem_lvl, current->count,print_access_type(current->mem_lvl) );
+		printf("LEVEL %d count %d %s \n", current->mem_lvl, current->count,print_access_type(current->mem_lvl) );
+		if(file)
+			fprintf(file,"LEVEL %d count %d %s \n", current->mem_lvl, current->count,print_access_type(current->mem_lvl) );
 	}
 }
 
@@ -297,4 +301,51 @@ void sort_entries(struct numa_metrics *nm){
 	HASH_SORT( nm->page_accesses, id_sort );
 }
 
+void init_report_file(struct numa_metrics *nm){
+	time_t ctime;
+	int label=0;
+	FILE *file;
+	char fname[15];
+	
+	time(&ctime);
+	label=(int)ctime%10000;
+	sprintf(fname,"mig-rpt-%d.txt",label);
+	
+	file = fopen(fname, "w");
+	
+	if (file == NULL) {
+		fprintf(stderr, "Can't open output file %s!\n", fname);
+		return;
+	}
+	fprintf(stdout,"Will output report to %s", fname);
+	(*nm).report=file;
+	(*nm).report_filename=fname;
+	fprintf((*nm).report,"inicia file");
+	
 
+}
+
+void close_report_file(struct numa_metrics *nm){
+	if(nm->report){
+		fclose(nm->report);
+	}
+}
+
+void launch_command(struct numa_metrics *nm, char* command2_launch){
+	int pid;
+	if(!command2_launch)
+		return;
+	if ((pid = fork()) == 0){
+  
+           setenv("GOMP_CPU_AFFINITY", "7,14",1);
+           setenv("OMP_NUM_THREADS","2",0);
+           execl(command2_launch,NULL,NULL);
+           exit(0);
+           printf ("hello from the child\n");
+	   }
+    else{
+           printf("hello from the parent %d",pid);
+           nm->pid_uo=pid;
+	}
+	
+}

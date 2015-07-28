@@ -12,6 +12,9 @@ struct numa_metrics {
 	struct page_stats *page_accesses;
 	struct access_stats *lvl_accesses;
 	int moved_pages;
+	FILE *report;
+	char* report_filename;
+	char* command2_launch;
 };
 
 struct page_stats{
@@ -62,4 +65,9 @@ void add_lvl_access( struct numa_metrics *multiproc_info, union perf_mem_data_sr
 void print_access_info(struct numa_metrics *multiproc_info);
 
 char* print_access_type(int entry);
+
+void init_report_file(struct numa_metrics *nm);
+void close_report_file(struct numa_metrics *nm);
+
+void launch_command(struct numa_metrics *nm, char* command2_launch);
 #endif

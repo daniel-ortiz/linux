@@ -759,7 +759,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 			return;
 	
 		//numa-an kicks in here to examine the samples we are interested in
-		if (top->numa_migrate_mode && sample->pid == (unsigned int)top->numa_migrate_pid_filter){
+		if (top->numa_migrate_mode && sample->pid == top->numa_metrics->pid_uo){
 			
 			//get the type of access
 			data_src.val = sample->data_src;
@@ -784,7 +784,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 			//we care about return value 0
 			if(!filter_access){
 				top->numa_metrics->remote_accesses[sample->cpu]++;
-				migrate_res=do_migration(nm, (unsigned int)top->numa_migrate_pid_filter, sample);
+				migrate_res=do_migration(nm, nm->pid_uo, sample);
 			}
 		              
 		}
@@ -954,9 +954,17 @@ static int __cmd_top(struct perf_top *top)
 	nm->logging_detail_level=top->numa_migrate_logdetail;
 	nm->moved_pages=0;
 	top->numa_metrics=nm;
+	nm->pid_uo=top->numa_migrate_pid_filter;
 	
 	init_processor_mapping(nm);
-
+	
+	if(top->migrate_filereport){
+		init_report_file(nm);
+	}
+	
+	if (top->launch_command){	
+		launch_command(top->numa_metrics,top->command2_launch );
+	}
 	
 	top->session = perf_session__new(NULL, false, NULL);
 	if (top->session == NULL)
@@ -1028,8 +1036,12 @@ static int __cmd_top(struct perf_top *top)
 	ret = 0;
 out_delete:
 	print_migration_statistics(top->numa_metrics);
+	
 	if(top->migrate_track_levels){
 		print_access_info(top->numa_metrics);
+	}
+	if(top->migrate_filereport){
+		close_report_file(nm);
 	}
 	perf_session__delete(top->session);
 	top->session = NULL;
@@ -1169,7 +1181,9 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_INTEGER('0', "numa-repdetail", &top.numa_migrate_logdetail,
 		    "Specifies the detail of information to show"),
 	OPT_INTEGER('0', "npid", &top.numa_migrate_pid_filter,
-		    "Process id that numa-an will watch"),
+		    "Process id that numa-an will watch"),  
+	OPT_BOOLEAN('0', "print-filereport", &top.migrate_filereport,
+			    "Generate a file report with the migration statistics"),   
 	OPT_STRING('u', "uid", &target->uid_str, "user", "user to profile"),
 	OPT_CALLBACK(0, "percent-limit", &top, "percent",
 		     "Don't show entries under that percent", parse_percent_limit),
@@ -1177,6 +1191,8 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 		     "Disable the page migration and just gather statistics"),
 	OPT_BOOLEAN('0', "track-accesslvls", &top.migrate_track_levels,
 		     "In combination with numa-migrate keeps track of the number of accesses per access level "),
+	OPT_BOOLEAN('0', "exec-command", &top.launch_command,
+		     "Launches a given command along with top and tracks its pid "),
 	OPT_END()
 	};
 	const char * const top_usage[] = {
@@ -1189,8 +1205,14 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 		return -ENOMEM;
 
 	argc = parse_options(argc, argv, options, top_usage, 0);
-	if (argc)
+
+	//will assume that the remaining strings represent the command to launch
+	if (argc && top.launch_command){
+		top.command2_launch = argv[0];
+	}else if(argc && ! top.launch_command){
 		usage_with_options(top_usage, options);
+	}
+			
 
 	if (sort_order == default_sort_order)
 		sort_order = "dso,symbol";
@@ -1272,6 +1294,9 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 		printf("numa migrate enabled\n");
 		top.record_opts.sample_weight=true;
 		top.record_opts.sample_address=true;
+		if(top.launch_command){
+			
+		}
 		
 	}
 	status = __cmd_top(&top);

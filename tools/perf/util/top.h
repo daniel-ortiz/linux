@@ -43,8 +43,11 @@ struct perf_top {
 	bool			numa_migrate_mode;
 	bool			migrate_just_measure;
 	bool			migrate_track_levels;
+	bool			migrate_filereport;
+	bool			launch_command;
 	int				numa_migrate_pid_filter;
 	int				numa_migrate_logdetail;
+	char*			command2_launch;
 	struct numa_metrics *numa_metrics;
 };
 
