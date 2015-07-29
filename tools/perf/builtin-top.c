@@ -593,7 +593,7 @@ static void *display_thread(void *arg)
 	struct pollfd stdin_poll = { .fd = 0, .events = POLLIN };
 	struct termios tc, save;
 	struct perf_top *top = arg;
-	int delay_msecs, c;
+	int delay_msecs, c, sigres,*st,errn;
 
 	tcgetattr(0, &save);
 	tc = save;
@@ -609,6 +609,23 @@ repeat:
 	getc(stdin);
 
 	while (!done) {
+		//will exit if observed pid does not exist anymore
+		if(top->launch_command && top->numa_metrics->pid_uo!=0){
+			
+			sigres=kill(top->numa_metrics->pid_uo,0);
+			printf("query %d %d\n ", sigres,top->numa_metrics->pid_uo);
+			//must do this otherwise process stays as zombie
+			waitpid(top->numa_metrics->pid_uo,st,WNOHANG);
+			if(sigres==-1 ){
+					errn=errno;
+					if (errn== ESRCH || errn==ECHILD){
+						printf("process under observation has stopped %d \n",errn);
+						done=1;
+					}
+			}
+
+		}
+		
 		perf_top__print_sym_table(top);
 		/*
 		 * Either timeout expired or we got an EINTR due to SIGWINCH,
@@ -778,7 +795,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 				page_addr,filter_access, sample->cpu, sample->weight);
 				
 				if(top->migrate_track_levels){
-					 add_lvl_access( nm, &data_src );
+					 add_lvl_access( nm, &data_src,sample->weight );
 				}
 			}
 			//we care about return value 0
@@ -956,15 +973,28 @@ static int __cmd_top(struct perf_top *top)
 	top->numa_metrics=nm;
 	nm->pid_uo=top->numa_migrate_pid_filter;
 	
+	
 	init_processor_mapping(nm);
 	
 	if(top->migrate_filereport){
 		init_report_file(nm);
 	}
 	
+	
 	if (top->launch_command){	
 		launch_command(top->numa_metrics,top->command2_launch );
 	}
+
+	
+	print_info(top->numa_metrics->report, "period: %d w-filter %d command ",
+		top->record_opts.user_interval, top->record_opts.weight_min_threshold);
+	
+	if (top->command2_launch){
+		print_info(top->numa_metrics->report, "%s \n", top->command2_launch );
+	}else{
+		print_info(top->numa_metrics->report, "\n");
+	}
+		
 	
 	top->session = perf_session__new(NULL, false, NULL);
 	if (top->session == NULL)
@@ -1037,12 +1067,14 @@ static int __cmd_top(struct perf_top *top)
 out_delete:
 	print_migration_statistics(top->numa_metrics);
 	
+	kill(top->numa_metrics->pid_uo,9);
 	if(top->migrate_track_levels){
 		print_access_info(top->numa_metrics);
 	}
 	if(top->migrate_filereport){
 		close_report_file(nm);
 	}
+	printf("\n Report file %s \n", top->numa_metrics->report_filename);
 	perf_session__delete(top->session);
 	top->session = NULL;
 

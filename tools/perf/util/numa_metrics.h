@@ -2,13 +2,17 @@
 #define __NUMAMM_HIST_H
 
 #include <uthash.h>
+#define WEIGHT_BUCKETS_NR 19
+#define WEIGHT_BUCKET_INTERVAL 50
+#define LINE_SIZE 500
 struct numa_metrics {
 	int n_cpus;
-	int pid_uo;
+	unsigned int pid_uo;
 	int remote_accesses[32];
 	int process_accesses[32];
 	int cpu_to_processor[32];
 	int logging_detail_level;
+	int access_by_weight[WEIGHT_BUCKETS_NR];
 	struct page_stats *page_accesses;
 	struct access_stats *lvl_accesses;
 	int moved_pages;
@@ -60,14 +64,17 @@ int filter_local_accesses(union perf_mem_data_src *entry);
 
 void  print_migration_statistics(struct numa_metrics *nm);
 
-void add_lvl_access( struct numa_metrics *multiproc_info, union perf_mem_data_src *entry );
+void add_lvl_access( struct numa_metrics *multiproc_info, union perf_mem_data_src *entry, int weight );
 	
 void print_access_info(struct numa_metrics *multiproc_info);
 
 char* print_access_type(int entry);
 
 void init_report_file(struct numa_metrics *nm);
+
 void close_report_file(struct numa_metrics *nm);
 
 void launch_command(struct numa_metrics *nm, char* command2_launch);
+
+void print_info(FILE* file, const char* format, ...);
 #endif

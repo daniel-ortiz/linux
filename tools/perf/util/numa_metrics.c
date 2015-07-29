@@ -8,6 +8,7 @@
 #include <signal.h>
 #include <omp.h>
 #include <uthash.h>
+#include <stdarg.h>
 
 void print_migration_statistics(struct numa_metrics *nm){
 	struct page_stats *current,*tmp;
@@ -20,13 +21,13 @@ void print_migration_statistics(struct numa_metrics *nm){
 	}
 	total_accesses= total_accesses==0 ? 1 : total_accesses;
 	rem2loc=(100*(float)remote_accesses/(float)total_accesses); 
-	printf("\t\t MIGRATION STATISTICS \n");
+	print_info(nm->report,"\t\t MIGRATION STATISTICS \n");
 	
-	printf(" sampled accesses: %d\n remote accesses: %d \n pzn remote %f \n\n\n", total_accesses, remote_accesses,rem2loc);
-	printf(" moved pages: %d \n",nm->moved_pages);
+	print_info(nm->report," sampled accesses: %d\n remote accesses: %d \n pzn remote %f \n\n\n", total_accesses, remote_accesses,rem2loc);
+	print_info(nm->report," moved pages: %d \n",nm->moved_pages);
 	
 	for(i=0; i<32; i++){
-		printf("CPU: %d	sampled: %d \t remote %d \n",i, nm->process_accesses[i], nm->remote_accesses[i]);
+		print_info(nm->report,"CPU: %d	sampled: %d \t remote %d \n",i, nm->process_accesses[i], nm->remote_accesses[i]);
 	}
 	
 	sort_entries(nm);
@@ -193,11 +194,15 @@ void init_processor_mapping(struct numa_metrics *multiproc_info){
 	multiproc_info->cpu_to_processor[i]=map[i];
 }
 
-void add_lvl_access( struct numa_metrics *multiproc_info, union perf_mem_data_src *entry ){
+void add_lvl_access( struct numa_metrics *multiproc_info, union perf_mem_data_src *entry, int weight ){
 	struct access_stats *current=NULL;
 	int key=(int)entry->mem_lvl;
-	HASH_FIND_INT(multiproc_info->lvl_accesses, &key,current);
+	int weight_bucket=weight / WEIGHT_BUCKET_INTERVAL;
 	
+	HASH_FIND_INT(multiproc_info->lvl_accesses, &key,current);
+	weight_bucket=weight_bucket > (WEIGHT_BUCKETS_NR-1) ? WEIGHT_BUCKETS_NR-1 : weight_bucket;
+	
+	multiproc_info->access_by_weight[weight_bucket]++;
 	if(!current){
 		current=malloc(sizeof(struct access_stats));
 		current->count=0;
@@ -244,11 +249,18 @@ void add_mem_access( struct numa_metrics *multiproc_info, void *page_addr, int a
 void print_access_info(struct numa_metrics *multiproc_info ){
 	struct access_stats *current=NULL,*tmp;
 	FILE *file=multiproc_info->report;
+	int i=0,ubound,lbound;
 	HASH_ITER(hh, multiproc_info->lvl_accesses, current, tmp) {
-		printf("LEVEL %d count %d %s \n", current->mem_lvl, current->count,print_access_type(current->mem_lvl) );
-		if(file)
-			fprintf(file,"LEVEL %d count %d %s \n", current->mem_lvl, current->count,print_access_type(current->mem_lvl) );
+		print_info(multiproc_info->report,"LEVEL %d count %d %s \n", current->mem_lvl, current->count,print_access_type(current->mem_lvl) );
 	}
+	print_info(multiproc_info->report, "\n\n\n Access breakdown by weight \n\n");
+	
+	for(i=0; i<WEIGHT_BUCKETS_NR; i++){
+		lbound=i*WEIGHT_BUCKET_INTERVAL;
+		ubound=(i+1)*WEIGHT_BUCKET_INTERVAL;
+		print_info(multiproc_info->report,"%d - %d : %d\n",lbound,ubound, multiproc_info->access_by_weight[i]);
+	}
+	
 }
 
 //This method is based on util/sort.c:hist_entry__lvl_snprintf
@@ -317,11 +329,9 @@ void init_report_file(struct numa_metrics *nm){
 		fprintf(stderr, "Can't open output file %s!\n", fname);
 		return;
 	}
-	fprintf(stdout,"Will output report to %s", fname);
+	fprintf(stdout,"Will output report to %s \n", fname);
 	(*nm).report=file;
-	(*nm).report_filename=fname;
-	fprintf((*nm).report,"inicia file");
-	
+	(*nm).report_filename=fname;	
 
 }
 
@@ -337,15 +347,35 @@ void launch_command(struct numa_metrics *nm, char* command2_launch){
 		return;
 	if ((pid = fork()) == 0){
   
-           setenv("GOMP_CPU_AFFINITY", "7,14",1);
            setenv("OMP_NUM_THREADS","2",0);
+           setenv("GOMP_CPU_AFFINITY", "7,14",1);
+           system("sleep 0.5");
            execl(command2_launch,NULL,NULL);
-           exit(0);
-           printf ("hello from the child\n");
+           printf ("\n Child has ended execution \n");
+           _exit(2);
+           
 	   }
     else{
-           printf("hello from the parent %d",pid);
+           printf("Command launched with pid %d \n",pid);
            nm->pid_uo=pid;
 	}
+	
+}
+
+void print_info(FILE* file, const char* format, ...){
+	va_list a_list;
+	char line[500];
+	va_start( a_list, format );
+		if(file!=NULL)
+			vfprintf(file,format,a_list);
+		
+	va_end(a_list);
+	
+	va_start( a_list, format );
+
+		vprintf(format,a_list);
+		
+	va_end(a_list);
+
 	
 }
