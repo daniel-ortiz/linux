@@ -981,13 +981,13 @@ static int __cmd_top(struct perf_top *top)
 	}
 	
 	
-	if (top->launch_command){	
-		launch_command(top->numa_metrics,top->command2_launch );
+	if (top->launch_command && top->argv_size>0){	
+		launch_command(top->numa_metrics,top->command2_launch, top->argv_size);
 	}
 
 	
-	print_info(top->numa_metrics->report, "period: %d w-filter %d command ",
-		top->record_opts.user_interval, top->record_opts.weight_min_threshold);
+	print_info(top->numa_metrics->report, "command : %s \n ",
+		top->command_string);
 	
 	if (top->command2_launch){
 		print_info(top->numa_metrics->report, "%s \n", top->command2_launch );
@@ -1149,7 +1149,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_CALLBACK('m', "mmap-pages", &opts->mmap_pages, "pages",
 		     "number of mmap data pages",
 		     perf_evlist__parse_mmap_pages),
-	OPT_INTEGER('r', "realtime", &top.realtime_prio,
+	OPT_INTEGER('0', "realtime", &top.realtime_prio,
 		    "collect data with this RT SCHED_FIFO priority"),
 	OPT_INTEGER('d', "delay", &top.delay_secs,
 		    "number of seconds to delay between refreshes"),
@@ -1159,7 +1159,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "only display functions with more events than this"),
 	OPT_BOOLEAN(0, "group", &opts->group,
 			    "put the counters into a counter group"),
-	OPT_BOOLEAN('i', "no-inherit", &opts->no_inherit,
+	OPT_BOOLEAN('0', "no-inherit", &opts->no_inherit,
 		    "child tasks do not inherit counters"),
 	OPT_STRING(0, "sym-annotate", &top.sym_filter, "symbol name",
 		    "symbol to annotate"),
@@ -1232,15 +1232,17 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 		NULL
 	};
 
+	top.command_string=get_command_string(argv,  argc);
 	top.evlist = perf_evlist__new();
 	if (top.evlist == NULL)
 		return -ENOMEM;
 
-	argc = parse_options(argc, argv, options, top_usage, 0);
+	argc = parse_options(argc, argv, options, top_usage, PARSE_OPT_STOP_AT_NON_OPTION);
 
 	//will assume that the remaining strings represent the command to launch
 	if (argc && top.launch_command){
-		top.command2_launch = argv[0];
+		top.command2_launch = argv;
+		top.argv_size=argc;
 	}else if(argc && ! top.launch_command){
 		usage_with_options(top_usage, options);
 	}

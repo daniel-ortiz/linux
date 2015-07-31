@@ -341,16 +341,32 @@ void close_report_file(struct numa_metrics *nm){
 	}
 }
 
-void launch_command(struct numa_metrics *nm, char* command2_launch){
+//makes sure that the list of arguments ends with a null pointer
+char ** put_end_params(char **argv,int argc){
+	char ** list_args=malloc(sizeof(char*)*(argc+1));
+	int i;
+	
+	for(i=0; i<argc; i++){
+		*(list_args+i)=*(argv+i);
+	}
+	
+	*(list_args+argc)=NULL;
+	
+	return list_args;
+}
+
+void launch_command(struct numa_metrics *nm, char** argv, int argc){
 	int pid;
-	if(!command2_launch)
+	char ** args;
+	if(argc< 1 || !argv[0])
 		return;
+	args=put_end_params(argv,argc);
 	if ((pid = fork()) == 0){
   
            setenv("OMP_NUM_THREADS","2",0);
            setenv("GOMP_CPU_AFFINITY", "7,14",1);
            system("sleep 0.5");
-           execl(command2_launch,NULL,NULL);
+           execv(argv[0],args);
            printf ("\n Child has ended execution \n");
            _exit(2);
            
@@ -377,5 +393,21 @@ void print_info(FILE* file, const char* format, ...){
 		
 	va_end(a_list);
 
+}
+
+char* get_command_string(char ** argv, int argc){
+	int i=0,length=0;
+	char* str;
 	
+	for(int i=0; i<argc;i++){
+		length+=strlen(argv[i]);
+	}
+	str=malloc(sizeof(char)*length+ 2*argc);
+	
+	for(int i=0; i<argc;i++){
+		strcat(str,argv[i]);
+		strcat(str," ");
+	}
+	strcat(str,"\0");
+	return str;
 }

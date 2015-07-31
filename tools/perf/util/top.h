@@ -47,7 +47,9 @@ struct perf_top {
 	bool			launch_command;
 	int				numa_migrate_pid_filter;
 	int				numa_migrate_logdetail;
-	char*			command2_launch;
+	int 			argv_size;
+	char**			command2_launch;
+	char* 			command_string;
 	struct numa_metrics *numa_metrics;
 };
 

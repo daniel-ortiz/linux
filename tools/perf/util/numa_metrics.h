@@ -74,7 +74,12 @@ void init_report_file(struct numa_metrics *nm);
 
 void close_report_file(struct numa_metrics *nm);
 
-void launch_command(struct numa_metrics *nm, char* command2_launch);
+void launch_command(struct numa_metrics *nm, char** argv, int argc);
 
 void print_info(FILE* file, const char* format, ...);
+
+char ** put_end_params(char **argv,int argc);
+
+char* get_command_string(char ** argv, int argc);
+
 #endif
