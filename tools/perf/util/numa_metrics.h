@@ -19,7 +19,8 @@ struct numa_metrics {
 	FILE *report;
 	char* report_filename;
 	char* command2_launch;
-};
+	const char* file_label;
+	};
 
 struct page_stats{
 	int proc0_acceses;
@@ -80,6 +81,7 @@ void print_info(FILE* file, const char* format, ...);
 
 char ** put_end_params(char **argv,int argc);
 
-char* get_command_string(char ** argv, int argc);
+char* get_command_string(const char ** argv, int argc);
 
+long id_sort(struct page_stats *a, struct page_stats *b);
 #endif

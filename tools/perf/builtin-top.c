@@ -593,7 +593,7 @@ static void *display_thread(void *arg)
 	struct pollfd stdin_poll = { .fd = 0, .events = POLLIN };
 	struct termios tc, save;
 	struct perf_top *top = arg;
-	int delay_msecs, c, sigres,*st,errn;
+	int delay_msecs, c, sigres,*st=0,errn;
 
 	tcgetattr(0, &save);
 	tc = save;
@@ -625,8 +625,8 @@ repeat:
 			}
 
 		}
-		
-		perf_top__print_sym_table(top);
+		//gui disabled
+		//perf_top__print_sym_table(top);
 		/*
 		 * Either timeout expired or we got an EINTR due to SIGWINCH,
 		 * refresh screen in both cases.
@@ -783,7 +783,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 			filter_access=filter_local_accesses(&data_src);
 			
 			
-			if(sample->cpu>=0 && sample->cpu <31 ){
+			if(sample->cpu <31 ){
 				//statistics and hash table
 				top->numa_metrics->process_accesses[sample->cpu]++;
 				page_addr=sample->addr & ~mask ;
@@ -791,7 +791,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 				add_mem_access( nm, page_addr, sample->cpu);
 				
 				if(top->numa_migrate_logdetail>5)
-					printf("Access detected addr %p filter %d cpu %d weight %d \n", 
+					printf("Access detected addr %lux filter %d cpu %d weight %lu \n", 
 				page_addr,filter_access, sample->cpu, sample->weight);
 				
 				if(top->migrate_track_levels){
@@ -806,8 +806,8 @@ static void perf_event__process_sample(struct perf_tool *tool,
 		              
 		}
 		
-		
-		he = perf_evsel__add_hist_entry(evsel, &al, sample);
+		//since numa-mig does not use gui, the hists are disabled
+		//he = perf_evsel__add_hist_entry(evsel, &al, sample);
 		if (he == NULL) {
 			pr_err("Problem incrementing symbol period, skipping event\n");
 			return;
@@ -972,6 +972,7 @@ static int __cmd_top(struct perf_top *top)
 	nm->moved_pages=0;
 	top->numa_metrics=nm;
 	nm->pid_uo=top->numa_migrate_pid_filter;
+	nm->file_label=top->numa_filelabel;
 	
 	
 	init_processor_mapping(nm);
@@ -988,13 +989,7 @@ static int __cmd_top(struct perf_top *top)
 	
 	print_info(top->numa_metrics->report, "command : %s \n ",
 		top->command_string);
-	
-	if (top->command2_launch){
-		print_info(top->numa_metrics->report, "%s \n", top->command2_launch );
-	}else{
-		print_info(top->numa_metrics->report, "\n");
-	}
-		
+			
 	
 	top->session = perf_session__new(NULL, false, NULL);
 	if (top->session == NULL)
@@ -1217,6 +1212,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_BOOLEAN('0', "print-filereport", &top.migrate_filereport,
 			    "Generate a file report with the migration statistics"),   
 	OPT_STRING('u', "uid", &target->uid_str, "user", "user to profile"),
+	OPT_STRING('0', "file-label", &(top.numa_filelabel), "numa-mig-rpt", "prints the label that will be attached to the file"),
 	OPT_CALLBACK(0, "percent-limit", &top, "percent",
 		     "Don't show entries under that percent", parse_percent_limit),
 	OPT_BOOLEAN('0', "mig-just-measure", &top.migrate_just_measure,

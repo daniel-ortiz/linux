@@ -50,6 +50,7 @@ struct perf_top {
 	int 			argv_size;
 	char**			command2_launch;
 	char* 			command_string;
+	const char*			numa_filelabel;
 	struct numa_metrics *numa_metrics;
 };
 

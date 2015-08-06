@@ -15,25 +15,35 @@ void print_migration_statistics(struct numa_metrics *nm){
 	//TODO number cpus
 	int i=0, total_accesses=0, remote_accesses=0;
 	float rem2loc =0;
+	char lbl[30];
+	
 	for(i=0; i<32; i++){
 		total_accesses+= nm->process_accesses[i];
 		remote_accesses+= nm->remote_accesses[i];
 	}
 	total_accesses= total_accesses==0 ? 1 : total_accesses;
 	rem2loc=(100*(float)remote_accesses/(float)total_accesses); 
+	sprintf(lbl,"mig-rpt.txt");
+	
+	if(nm->file_label && strlen(nm->file_label)>0)
+		sprintf(lbl,"%s",nm->file_label);
+	
 	print_info(nm->report,"\t\t MIGRATION STATISTICS \n");
 	
-	print_info(nm->report," sampled accesses: %d\n remote accesses: %d \n pzn remote %f \n\n\n", total_accesses, remote_accesses,rem2loc);
-	print_info(nm->report," moved pages: %d \n",nm->moved_pages);
+	print_info(nm->report,"%s: sampled accesses: %d\n %s: remote accesses: %d \n pzn remote %f \n\n\n", 
+		lbl,total_accesses, lbl, remote_accesses,rem2loc);
+	print_info(nm->report,"%s moved pages: %d \n",lbl,nm->moved_pages);
 	
 	for(i=0; i<32; i++){
-		print_info(nm->report,"CPU: %d	sampled: %d \t remote %d \n",i, nm->process_accesses[i], nm->remote_accesses[i]);
+		print_info(nm->report,"%s: CPU- %d	sampled- %d \t remote- %d \n",lbl,i, nm->process_accesses[i], nm->remote_accesses[i]);
 	}
 	
+	
+		
 	sort_entries(nm);
 	HASH_ITER(hh, nm->page_accesses, current, tmp) {
 		if(nm->report)
-			fprintf(nm->report,"Accessed %p count %d %d \n", current->page_addr, current->proc0_acceses,current->proc1_acceses);
+			fprintf(nm->report," Accessed %p count %d %d \n",current->page_addr, current->proc0_acceses,current->proc1_acceses);
 	}
 	
 	
@@ -250,15 +260,19 @@ void print_access_info(struct numa_metrics *multiproc_info ){
 	struct access_stats *current=NULL,*tmp;
 	FILE *file=multiproc_info->report;
 	int i=0,ubound,lbound;
+	char * lbl;
+	
+	lbl= !multiproc_info->file_label || strlen(multiproc_info->file_label)<1 ? " " : multiproc_info->file_label;  
+	
 	HASH_ITER(hh, multiproc_info->lvl_accesses, current, tmp) {
-		print_info(multiproc_info->report,"LEVEL %d count %d %s \n", current->mem_lvl, current->count,print_access_type(current->mem_lvl) );
+		print_info(multiproc_info->report,"%s :LEVEL %d count %d %s \n", lbl, current->mem_lvl, current->count,print_access_type(current->mem_lvl) );
 	}
 	print_info(multiproc_info->report, "\n\n\n Access breakdown by weight \n\n");
 	
 	for(i=0; i<WEIGHT_BUCKETS_NR; i++){
 		lbound=i*WEIGHT_BUCKET_INTERVAL;
 		ubound=(i+1)*WEIGHT_BUCKET_INTERVAL;
-		print_info(multiproc_info->report,"%d - %d : %d\n",lbound,ubound, multiproc_info->access_by_weight[i]);
+		print_info(multiproc_info->report,"%s :%d - %d : %d\n", lbl,lbound,ubound, multiproc_info->access_by_weight[i]);
 	}
 	
 }
@@ -317,12 +331,15 @@ void init_report_file(struct numa_metrics *nm){
 	time_t ctime;
 	int label=0;
 	FILE *file;
-	char fname[15];
+	char fname[30];
 	
 	time(&ctime);
 	label=(int)ctime%10000;
 	sprintf(fname,"mig-rpt-%d.txt",label);
 	
+	if(nm->file_label && strlen(nm->file_label)>0)
+		sprintf(fname,"%s.txt",nm->file_label);
+		
 	file = fopen(fname, "w");
 	
 	if (file == NULL) {
@@ -380,7 +397,6 @@ void launch_command(struct numa_metrics *nm, char** argv, int argc){
 
 void print_info(FILE* file, const char* format, ...){
 	va_list a_list;
-	char line[500];
 	va_start( a_list, format );
 		if(file!=NULL)
 			vfprintf(file,format,a_list);
@@ -395,19 +411,21 @@ void print_info(FILE* file, const char* format, ...){
 
 }
 
-char* get_command_string(char ** argv, int argc){
-	int i=0,length=0;
+char* get_command_string(const char ** argv, int argc){
+	int ii=0,length=0,size=0;
 	char* str;
 	
-	for(int i=0; i<argc;i++){
-		length+=strlen(argv[i]);
-	}
-	str=malloc(sizeof(char)*length+ 2*argc);
 	
-	for(int i=0; i<argc;i++){
-		strcat(str,argv[i]);
+	for( ii=0; ii<argc;ii++){
+		length+=strlen(argv[ii]);
+	}
+	size=sizeof(char)*length+argc+1;
+	str=malloc(size);
+	memset(str,0,size);
+	for( ii=0; ii<argc;ii++){
+		strcat(str,argv[ii]);
 		strcat(str," ");
 	}
-	strcat(str,"\0");
+	
 	return str;
 }
