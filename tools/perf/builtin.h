@@ -26,7 +26,7 @@ extern int cmd_record(int argc, const char **argv, const char *prefix);
 extern int cmd_report(int argc, const char **argv, const char *prefix);
 extern int cmd_stat(int argc, const char **argv, const char *prefix);
 extern int cmd_timechart(int argc, const char **argv, const char *prefix);
-extern int cmd_top(int argc, const char **argv, const char *prefix);
+struct perf_top* cmd_top(int argc, const char **argv, const char *prefix);
 extern int cmd_script(int argc, const char **argv, const char *prefix);
 extern int cmd_version(int argc, const char **argv, const char *prefix);
 extern int cmd_probe(int argc, const char **argv, const char *prefix);

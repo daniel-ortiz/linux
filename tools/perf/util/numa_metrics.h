@@ -1,7 +1,9 @@
 #ifndef __NUMAMM_HIST_H
 #define __NUMAMM_HIST_H
-
+#include <stdio.h>
 #include <uthash.h>
+#include <stdbool.h>
+
 #define WEIGHT_BUCKETS_NR 19
 #define WEIGHT_BUCKET_INTERVAL 50
 #define LINE_SIZE 500
@@ -20,6 +22,7 @@ struct numa_metrics {
 	char* report_filename;
 	char* command2_launch;
 	const char* file_label;
+	bool timer_up;
 	};
 
 struct page_stats{
@@ -75,7 +78,7 @@ void init_report_file(struct numa_metrics *nm);
 
 void close_report_file(struct numa_metrics *nm);
 
-void launch_command(struct numa_metrics *nm, char** argv, int argc);
+int launch_command( char** argv, int argc);
 
 void print_info(FILE* file, const char* format, ...);
 

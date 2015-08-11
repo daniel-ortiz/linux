@@ -2,11 +2,13 @@
 #define __PERF_TOP_H 1
 
 #include "tool.h"
+#include "perf.h"
 #include "types.h"
 #include <stddef.h>
 #include <stdbool.h>
 #include <termios.h>
 #include <uthash.h>
+#include "sys/ioctl.h"
 
 struct perf_evlist;
 struct perf_evsel;

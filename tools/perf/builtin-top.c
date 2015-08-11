@@ -801,7 +801,8 @@ static void perf_event__process_sample(struct perf_tool *tool,
 			//we care about return value 0
 			if(!filter_access){
 				top->numa_metrics->remote_accesses[sample->cpu]++;
-				migrate_res=do_migration(nm, nm->pid_uo, sample);
+				// migration cancelled, instead the L3s are added to the candidates list
+				//migrate_res=do_migration(nm, nm->pid_uo, sample);
 			}
 		              
 		}
@@ -955,36 +956,24 @@ static int perf_top__setup_sample_type(struct perf_top *top __maybe_unused)
 	return 0;
 }
 
-static int __cmd_top(struct perf_top *top)
+ int __cmd_top(struct perf_top *top)
 {
 	struct record_opts *opts = &top->record_opts;
 	pthread_t thread;
 	int ret;
 	
-	struct numa_metrics* nm;
 	
-	//Numa-migrate stuff is initialized here
-	nm=malloc(sizeof(struct numa_metrics));
-	memset(nm, 0, sizeof(struct numa_metrics));
-	nm->page_accesses=NULL;
-	nm->lvl_accesses=NULL;
-	nm->logging_detail_level=top->numa_migrate_logdetail;
-	nm->moved_pages=0;
-	top->numa_metrics=nm;
-	nm->pid_uo=top->numa_migrate_pid_filter;
-	nm->file_label=top->numa_filelabel;
-	
-	
-	init_processor_mapping(nm);
 	
 	if(top->migrate_filereport){
-		init_report_file(nm);
+		//TODO review this
+		//init_report_file(nm);
 	}
 	
 	
-	if (top->launch_command && top->argv_size>0){	
-		launch_command(top->numa_metrics,top->command2_launch, top->argv_size);
-	}
+	//this has been discontinued in the newer version
+	//if (top->launch_command && top->argv_size>0){	
+		//launch_command(top->numa_metrics,top->command2_launch, top->argv_size);
+	//}
 
 	
 	print_info(top->numa_metrics->report, "command : %s \n ",
@@ -1033,11 +1022,11 @@ static int __cmd_top(struct perf_top *top)
 	perf_top__mmap_read(top);
 
 	ret = -1;
-	if (pthread_create(&thread, NULL, (use_browser > 0 ? display_thread_tui :
-							    display_thread), top)) {
-		ui__error("Could not create display thread.\n");
-		goto out_delete;
-	}
+	//if (pthread_create(&thread, NULL, (use_browser > 0 ? display_thread_tui :
+							    //display_thread), top)) {
+		//ui__error("Could not create display thread.\n");
+		//goto out_delete;
+	//}
 
 	if (top->realtime_prio) {
 		struct sched_param param;
@@ -1056,6 +1045,9 @@ static int __cmd_top(struct perf_top *top)
 
 		if (hits == top->samples)
 			ret = poll(top->evlist->pollfd, top->evlist->nr_fds, 100);
+		
+		if(top->numa_metrics->timer_up)
+			done=1;
 	}
 
 	ret = 0;
@@ -1067,7 +1059,8 @@ out_delete:
 		print_access_info(top->numa_metrics);
 	}
 	if(top->migrate_filereport){
-		close_report_file(nm);
+		//TODO review this
+		//close_report_file(nm);
 	}
 	printf("\n Report file %s \n", top->numa_metrics->report_filename);
 	perf_session__delete(top->session);
@@ -1100,7 +1093,7 @@ parse_percent_limit(const struct option *opt, const char *arg,
 	return 0;
 }
 
-int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
+struct perf_top* cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	int status = -1;
 	char errbuf[BUFSIZ];
@@ -1120,6 +1113,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 		.max_stack	     = PERF_MAX_STACK_DEPTH,
 		.sym_pcnt_filter     = 5,
 	};
+	struct perf_top *rtn=malloc(sizeof(struct perf_top));
 	struct record_opts *opts = &top.record_opts;
 	struct target *target = &opts->target;
 	const struct option options[] = {
@@ -1219,8 +1213,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 		     "Disable the page migration and just gather statistics"),
 	OPT_BOOLEAN('0', "track-accesslvls", &top.migrate_track_levels,
 		     "In combination with numa-migrate keeps track of the number of accesses per access level "),
-	OPT_BOOLEAN('0', "exec-command", &top.launch_command,
-		     "Launches a given command along with top and tracks its pid "),
+
 	OPT_END()
 	};
 	const char * const top_usage[] = {
@@ -1231,7 +1224,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	top.command_string=get_command_string(argv,  argc);
 	top.evlist = perf_evlist__new();
 	if (top.evlist == NULL)
-		return -ENOMEM;
+		return NULL;
 
 	argc = parse_options(argc, argv, options, top_usage, PARSE_OPT_STOP_AT_NON_OPTION);
 
@@ -1307,7 +1300,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	symbol_conf.try_vmlinux_path = (symbol_conf.vmlinux_name == NULL);
 	if (symbol__init() < 0)
-		return -1;
+		return NULL;
 
 	sort__setup_elide(stdout);
 
@@ -1329,10 +1322,12 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 		}
 		
 	}
-	status = __cmd_top(&top);
+	//commented due to change in methos
+	//status = __cmd_top(&top);
 
 out_delete_evlist:
-	perf_evlist__delete(top.evlist);
-
-	return status;
+	//commented due to chage in method
+	//perf_evlist__delete(top.evlist);
+	memcpy(rtn,&top,sizeof(struct perf_top));
+	return rtn;
 }

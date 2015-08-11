@@ -452,100 +452,100 @@ void pthread__unblock_sigwinch(void)
 	pthread_sigmask(SIG_UNBLOCK, &set, NULL);
 }
 
-int main(int argc, const char **argv)
-{
-	const char *cmd;
+//int main(int argc, const char **argv)
+//{
+	//const char *cmd;
 
-	/* The page_size is placed in util object. */
-	page_size = sysconf(_SC_PAGE_SIZE);
+	///* The page_size is placed in util object. */
+	//page_size = sysconf(_SC_PAGE_SIZE);
 
-	cmd = perf_extract_argv0_path(argv[0]);
-	if (!cmd)
-		cmd = "perf-help";
-	/* get debugfs mount point from /proc/mounts */
-	perf_debugfs_mount(NULL);
-	/*
-	 * "perf-xxxx" is the same as "perf xxxx", but we obviously:
-	 *
-	 *  - cannot take flags in between the "perf" and the "xxxx".
-	 *  - cannot execute it externally (since it would just do
-	 *    the same thing over again)
-	 *
-	 * So we just directly call the internal command handler, and
-	 * die if that one cannot handle it.
-	 */
-	if (!prefixcmp(cmd, "perf-")) {
-		cmd += 5;
-		argv[0] = cmd;
-		handle_internal_command(argc, argv);
-		fprintf(stderr, "cannot handle %s internally", cmd);
-		goto out;
-	}
-#ifdef HAVE_LIBAUDIT_SUPPORT
-	if (!prefixcmp(cmd, "trace")) {
-		set_buildid_dir();
-		setup_path();
-		argv[0] = "trace";
-		return cmd_trace(argc, argv, NULL);
-	}
-#endif
-	/* Look for flags.. */
-	argv++;
-	argc--;
-	handle_options(&argv, &argc, NULL);
-	commit_pager_choice();
-	set_buildid_dir();
+	//cmd = perf_extract_argv0_path(argv[0]);
+	//if (!cmd)
+		//cmd = "perf-help";
+	///* get debugfs mount point from /proc/mounts */
+	//perf_debugfs_mount(NULL);
+	///*
+	 //* "perf-xxxx" is the same as "perf xxxx", but we obviously:
+	 //*
+	 //*  - cannot take flags in between the "perf" and the "xxxx".
+	 //*  - cannot execute it externally (since it would just do
+	 //*    the same thing over again)
+	 //*
+	 //* So we just directly call the internal command handler, and
+	 //* die if that one cannot handle it.
+	 //*/
+	//if (!prefixcmp(cmd, "perf-")) {
+		//cmd += 5;
+		//argv[0] = cmd;
+		//handle_internal_command(argc, argv);
+		//fprintf(stderr, "cannot handle %s internally", cmd);
+		//goto out;
+	//}
+//#ifdef HAVE_LIBAUDIT_SUPPORT
+	//if (!prefixcmp(cmd, "trace")) {
+		//set_buildid_dir();
+		//setup_path();
+		//argv[0] = "trace";
+		//return cmd_trace(argc, argv, NULL);
+	//}
+//#endif
+	///* Look for flags.. */
+	//argv++;
+	//argc--;
+	//handle_options(&argv, &argc, NULL);
+	//commit_pager_choice();
+	//set_buildid_dir();
 
-	if (argc > 0) {
-		if (!prefixcmp(argv[0], "--"))
-			argv[0] += 2;
-	} else {
-		/* The user didn't specify a command; give them help */
-		printf("\n usage: %s\n\n", perf_usage_string);
-		list_common_cmds_help();
-		printf("\n %s\n\n", perf_more_info_string);
-		goto out;
-	}
-	cmd = argv[0];
+	//if (argc > 0) {
+		//if (!prefixcmp(argv[0], "--"))
+			//argv[0] += 2;
+	//} else {
+		///* The user didn't specify a command; give them help */
+		//printf("\n usage: %s\n\n", perf_usage_string);
+		//list_common_cmds_help();
+		//printf("\n %s\n\n", perf_more_info_string);
+		//goto out;
+	//}
+	//cmd = argv[0];
 
-	test_attr__init();
+	//test_attr__init();
 
-	/*
-	 * We use PATH to find perf commands, but we prepend some higher
-	 * precedence paths: the "--exec-path" option, the PERF_EXEC_PATH
-	 * environment, and the $(perfexecdir) from the Makefile at build
-	 * time.
-	 */
-	setup_path();
-	/*
-	 * Block SIGWINCH notifications so that the thread that wants it can
-	 * unblock and get syscalls like select interrupted instead of waiting
-	 * forever while the signal goes to some other non interested thread.
-	 */
-	pthread__block_sigwinch();
+	///*
+	 //* We use PATH to find perf commands, but we prepend some higher
+	 //* precedence paths: the "--exec-path" option, the PERF_EXEC_PATH
+	 //* environment, and the $(perfexecdir) from the Makefile at build
+	 //* time.
+	 //*/
+	//setup_path();
+	///*
+	 //* Block SIGWINCH notifications so that the thread that wants it can
+	 //* unblock and get syscalls like select interrupted instead of waiting
+	 //* forever while the signal goes to some other non interested thread.
+	 //*/
+	//pthread__block_sigwinch();
 
-	while (1) {
-		static int done_help;
-		int was_alias = run_argv(&argc, &argv);
+	//while (1) {
+		//static int done_help;
+		//int was_alias = run_argv(&argc, &argv);
 
-		if (errno != ENOENT)
-			break;
+		//if (errno != ENOENT)
+			//break;
 
-		if (was_alias) {
-			fprintf(stderr, "Expansion of alias '%s' failed; "
-				"'%s' is not a perf-command\n",
-				cmd, argv[0]);
-			goto out;
-		}
-		if (!done_help) {
-			cmd = argv[0] = help_unknown_cmd(cmd);
-			done_help = 1;
-		} else
-			break;
-	}
+		//if (was_alias) {
+			//fprintf(stderr, "Expansion of alias '%s' failed; "
+				//"'%s' is not a perf-command\n",
+				//cmd, argv[0]);
+			//goto out;
+		//}
+		//if (!done_help) {
+			//cmd = argv[0] = help_unknown_cmd(cmd);
+			//done_help = 1;
+		//} else
+			//break;
+	//}
 
-	fprintf(stderr, "Failed to run command '%s': %s\n",
-		cmd, strerror(errno));
-out:
-	return 1;
-}
+	//fprintf(stderr, "Failed to run command '%s': %s\n",
+		//cmd, strerror(errno));
+//out:
+	//return 1;
+//}

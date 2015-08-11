@@ -1,14 +1,18 @@
 
 	//the home proc c#include "sort.h"
+#include <stdio.h>
 #include "hist.h"
 #include "symbol.h"
 #include "numa_metrics.h"
+
 #include <numaif.h>
 #include <time.h>
 #include <signal.h>
 #include <omp.h>
 #include <uthash.h>
 #include <stdarg.h>
+#include <errno.h>
+
 
 void print_migration_statistics(struct numa_metrics *nm){
 	struct page_stats *current,*tmp;
@@ -372,8 +376,8 @@ char ** put_end_params(char **argv,int argc){
 	return list_args;
 }
 
-void launch_command(struct numa_metrics *nm, char** argv, int argc){
-	int pid;
+int launch_command( char** argv, int argc){
+	int pid,ret=0;
 	char ** args;
 	if(argc< 1 || !argv[0])
 		return;
@@ -383,14 +387,16 @@ void launch_command(struct numa_metrics *nm, char** argv, int argc){
            setenv("OMP_NUM_THREADS","2",0);
            setenv("GOMP_CPU_AFFINITY", "7,14",1);
            system("sleep 0.5");
+
            execv(argv[0],args);
-           printf ("\n Child has ended execution \n");
+          
+          printf ("\n Child has ended execution \n");
            _exit(2);
            
 	   }
     else{
            printf("Command launched with pid %d \n",pid);
-           nm->pid_uo=pid;
+           return pid;
 	}
 	
 }
