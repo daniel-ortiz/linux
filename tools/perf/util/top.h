@@ -49,6 +49,7 @@ struct perf_top {
 	bool			launch_command;
 	int				numa_migrate_pid_filter;
 	int				numa_migrate_logdetail;
+	int				numa_sensing_time;
 	int 			argv_size;
 	char**			command2_launch;
 	char* 			command_string;

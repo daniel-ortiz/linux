@@ -776,6 +776,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 			return;
 	
 		//numa-an kicks in here to examine the samples we are interested in
+		printf ("%d ",sample->pid);
 		if (top->numa_migrate_mode && sample->pid == top->numa_metrics->pid_uo){
 			
 			//get the type of access
@@ -976,8 +977,8 @@ static int perf_top__setup_sample_type(struct perf_top *top __maybe_unused)
 	//}
 
 	
-	print_info(top->numa_metrics->report, "command : %s \n ",
-		top->command_string);
+	print_info(top->numa_metrics->report, "command : %s \n pid %d \n ",
+		top->command_string,top->numa_metrics->pid_uo);
 			
 	
 	top->session = perf_session__new(NULL, false, NULL);
@@ -1065,7 +1066,8 @@ out_delete:
 	printf("\n Report file %s \n", top->numa_metrics->report_filename);
 	perf_session__delete(top->session);
 	top->session = NULL;
-
+	//must do this in case there are subsequent measurements
+	done=0;
 	return ret;
 }
 
@@ -1100,6 +1102,7 @@ struct perf_top* cmd_top(int argc, const char **argv, const char *prefix __maybe
 	struct perf_top top = {
 		.count_filter	     = 5,
 		.delay_secs	     = 2,
+		.numa_sensing_time	= 0,
 		.numa_migrate_mode =false,
 		.record_opts = {
 			.mmap_pages	= UINT_MAX,
@@ -1203,6 +1206,8 @@ struct perf_top* cmd_top(int argc, const char **argv, const char *prefix __maybe
 		    "Specifies the detail of information to show"),
 	OPT_INTEGER('0', "npid", &top.numa_migrate_pid_filter,
 		    "Process id that numa-an will watch"),  
+	OPT_INTEGER('0', "sensing-time", &top.numa_sensing_time,
+		    "Specifies for how long the first sensing phase will execute for"),  
 	OPT_BOOLEAN('0', "print-filereport", &top.migrate_filereport,
 			    "Generate a file report with the migration statistics"),   
 	OPT_STRING('u', "uid", &target->uid_str, "user", "user to profile"),
@@ -1229,12 +1234,10 @@ struct perf_top* cmd_top(int argc, const char **argv, const char *prefix __maybe
 	argc = parse_options(argc, argv, options, top_usage, PARSE_OPT_STOP_AT_NON_OPTION);
 
 	//will assume that the remaining strings represent the command to launch
-	if (argc && top.launch_command){
+	
 		top.command2_launch = argv;
 		top.argv_size=argc;
-	}else if(argc && ! top.launch_command){
-		usage_with_options(top_usage, options);
-	}
+
 			
 
 	if (sort_order == default_sort_order)
