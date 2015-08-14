@@ -47,6 +47,7 @@ struct perf_top {
 	bool			migrate_track_levels;
 	bool			migrate_filereport;
 	bool			launch_command;
+	bool			numa_analysis_enabled;
 	int				numa_migrate_pid_filter;
 	int				numa_migrate_logdetail;
 	int				numa_sensing_time;

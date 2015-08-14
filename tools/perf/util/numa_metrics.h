@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <uthash.h>
 #include <stdbool.h>
-
+#include "types.h"
 
 #define WEIGHT_BUCKETS_NR 19
 #define WEIGHT_BUCKET_INTERVAL 50
@@ -15,9 +15,12 @@ struct numa_metrics {
 	int process_accesses[32];
 	int cpu_to_processor[32];
 	int logging_detail_level;
+	int number_pages2move;
 	int access_by_weight[WEIGHT_BUCKETS_NR];
 	struct page_stats *page_accesses;
 	struct access_stats *lvl_accesses;
+	struct freq_stats *freq_accesses;
+	struct l3_addr *pages_2move;
 	int moved_pages;
 	FILE *report;
 	char* report_filename;
@@ -37,6 +40,17 @@ struct access_stats{
 	int count;
 	int mem_lvl;
 	UT_hash_handle hh;
+};
+
+struct freq_stats{
+	int count;
+	int freq;
+	UT_hash_handle hh;
+};
+
+struct l3_addr{
+	void* page_addr;
+	struct l3_addr *next;
 };
 
 static const char * const mem_lvl[] = {
@@ -88,4 +102,11 @@ char ** put_end_params(char **argv,int argc);
 char* get_command_string(const char ** argv, int argc);
 
 long id_sort(struct page_stats *a, struct page_stats *b);
+
+void add_page_2move(struct numa_metrics *nm,u64 addr);
+
+void do_great_migration(struct numa_metrics *nm);
+
+void add_freq_access(struct numa_metrics *nm, int frequency);
+	
 #endif

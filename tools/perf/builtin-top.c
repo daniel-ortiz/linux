@@ -776,9 +776,8 @@ static void perf_event__process_sample(struct perf_tool *tool,
 			return;
 	
 		//numa-an kicks in here to examine the samples we are interested in
-		printf ("%d ",sample->pid);
-		if (top->numa_migrate_mode && sample->pid == top->numa_metrics->pid_uo){
-			
+		
+		if (top->numa_migrate_mode && sample->pid == top->numa_metrics->pid_uo && top->numa_analysis_enabled){
 			//get the type of access
 			data_src.val = sample->data_src;
 			filter_access=filter_local_accesses(&data_src);
@@ -802,6 +801,9 @@ static void perf_event__process_sample(struct perf_tool *tool,
 			//we care about return value 0
 			if(!filter_access){
 				top->numa_metrics->remote_accesses[sample->cpu]++;
+				
+				add_page_2move(top->numa_metrics, page_addr);
+
 				// migration cancelled, instead the L3s are added to the candidates list
 				//migrate_res=do_migration(nm, nm->pid_uo, sample);
 			}
@@ -1053,21 +1055,14 @@ static int perf_top__setup_sample_type(struct perf_top *top __maybe_unused)
 
 	ret = 0;
 out_delete:
-	print_migration_statistics(top->numa_metrics);
+	
 	
 	kill(top->numa_metrics->pid_uo,9);
-	if(top->migrate_track_levels){
-		print_access_info(top->numa_metrics);
-	}
-	if(top->migrate_filereport){
-		//TODO review this
-		//close_report_file(nm);
-	}
+	
 	printf("\n Report file %s \n", top->numa_metrics->report_filename);
 	perf_session__delete(top->session);
 	top->session = NULL;
-	//must do this in case there are subsequent measurements
-	done=0;
+
 	return ret;
 }
 
@@ -1317,17 +1312,12 @@ struct perf_top* cmd_top(int argc, const char **argv, const char *prefix __maybe
 		sigaction(SIGWINCH, &act, NULL);
 	}
 	if (top.numa_migrate_mode==true){
-		printf("numa migrate enabled\n");
 		top.record_opts.sample_weight=true;
 		top.record_opts.sample_address=true;
-		if(top.launch_command){
-			
-		}
-		
 	}
 	//commented due to change in methos
 	//status = __cmd_top(&top);
-
+	top.numa_analysis_enabled=true;
 out_delete_evlist:
 	//commented due to chage in method
 	//perf_evlist__delete(top.evlist);

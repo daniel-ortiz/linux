@@ -5,7 +5,6 @@
 #include <pthread.h>
 
 
-
 //This represents the main logic of the tool
 
 int run_numa_analysis(void *arg){
@@ -14,38 +13,84 @@ int run_numa_analysis(void *arg){
 	int j;
 	
 	tops=(struct perf_top**)arg;
-	 //(unsigned int (*)[150]) 
 	 
 	//phase 1: will run the tool for a specific measurement period
-	printf("children thread launched\n");
+	printf("MIG-CTRL> children thread launched\n");
 	
 	
-	if(pthread_create(&aux_thread,NULL,measure_aux_thread,(void *) *tops)){
-		printf("could not create aux thread \n");
+	if(pthread_create(&aux_thread,NULL,measure_aux_thread,(void *) *(tops))){
+		printf("MIG-CTRL> could not create aux thread \n");
 	}
 	
 	//launch top and gather data
-	__cmd_top(*tops);
+	__cmd_top(*(tops));
 	
 	pthread_join(aux_thread, NULL); 
 	
-	if(pthread_create(&aux_thread,NULL,measure_aux_thread,(void *) *(tops+1))){
-		printf("could not create aux thread \n");
-	}
-	printf("will now begin phase two \n");
-	
-	__cmd_top(*(tops+1));
-	//relaunch top
 }
 
+int wait_watch_process(int seconds,struct numa_metrics* nm){
+	int i=0,exit=0;
+	int sigres,*st=0,errn;
+	//every second it wakes up to make sure the process is alive
+
+	while(!exit){
+		sleep(1);
+		sigres=kill(nm->pid_uo,0);
+		waitpid(nm->pid_uo,st,WNOHANG);
+		if(sigres==-1 ){
+			errn=errno;
+			if (errn== ESRCH || errn==ECHILD){
+					return -1;
+				}
+			}
+		exit= (seconds > 1 && ++i<seconds) || seconds < 1 ? 0 : 1;
+	}
+	return 0;
+}
 
 void * measure_aux_thread(void *arg){
 	struct perf_top *top=(struct perf_top*) arg;
-	int sleep_time=top->numa_sensing_time;
+	int sleep_time=top->numa_sensing_time,wait_res;
 	sleep_time=sleep_time<1 ?  DEFAULT_SENSING_TIME  : sleep_time;
-	printf("will sleep for %d seconds\n",sleep_time);
-	sleep(sleep_time);
-	printf("\n has woken up from thread \n");
+	
+	
+
+	wait_res=wait_watch_process(sleep_time,top->numa_metrics);
+	if(wait_res) goto end_noproc;
+	printf("MIG-CTRL> End of sampling period\n");
+	top->numa_analysis_enabled=false;
+	//print the overall statistics before moving pages
+	print_migration_statistics(top->numa_metrics);
+	if(top->migrate_track_levels){
+		print_access_info(top->numa_metrics);
+	}
+	if(top->migrate_filereport){
+		//TODO review this
+		//close_report_file(nm);
+	}
+	top->numa_metrics->page_accesses=NULL;
+	top->numa_metrics->lvl_accesses=NULL;
+	top->numa_metrics->moved_pages=0;
+	//TODO adjust to core size
+	memset(top->numa_metrics->remote_accesses ,0,32);
+	memset(top->numa_metrics->process_accesses ,0,32);
+	memset(top->numa_metrics->access_by_weight ,0,WEIGHT_BUCKETS_NR);
+
+	
+	printf("MIG-CTRL> Call page migration \n");
+	do_great_migration(top->numa_metrics);
+	top->numa_analysis_enabled=true;
+	wait_res=wait_watch_process(-1,top->numa_metrics);
+
+	print_migration_statistics(top->numa_metrics);
+	if(top->migrate_track_levels){
+		print_access_info(top->numa_metrics);
+	}
+
+	
+end_noproc:
+	printf("MIG-CTRL> End of measurement due to end of existing process");
 	top->numa_metrics->timer_up=true;
 	return NULL;
 }
@@ -55,36 +100,18 @@ void * measure_aux_thread(void *arg){
  * specified as parameter or can attach to an already existing process  
  */
  
-int init_numa_analysis(int mode, int pid,char **command_args,int command_argc ){
+int init_numa_analysis(int mode, int pid,const char **command_args,int command_argc ){
 	struct perf_top *tops[2];
-	int argc2,i,size;
-	char **argv2,*tmp;
-	
 	pthread_t numatool_thread;
-	int pid_uo=0;
-	struct numa_metrics* nm,*nm2;
-	int x;
+
+	struct numa_metrics* nm;
 	//Numa-migrate stuff is initialized here
 	nm=malloc(sizeof(struct numa_metrics));
 	memset(nm, 0, sizeof(struct numa_metrics));
 	nm->page_accesses=NULL;
 	nm->lvl_accesses=NULL;
-	
-	argc2=command_argc;
-	argv2=malloc(argc2*sizeof(char*));
-	
-	for(int i=0; i<argc2; i++){
-		size=sizeof(char)*strlen(*(command_args+i));
-		tmp=malloc(size);
-		strcpy(tmp,*(command_args+i));
-		*(argv2+i)=tmp;
-		printf("%s %s %d\n", *(command_args+i),tmp, size);
-	}
-	nm2=malloc(sizeof(struct numa_metrics));
-	memset(nm2, 0, sizeof(struct numa_metrics));
-	nm2->page_accesses=NULL;
-	nm2->lvl_accesses=NULL;
-	
+	nm->pages_2move=NULL;
+
 	
 	init_processor_mapping(nm);
 	
@@ -101,7 +128,6 @@ int init_numa_analysis(int mode, int pid,char **command_args,int command_argc ){
 	}
 	
 	tops[0]=cmd_top(command_argc,command_args,NULL);
-	tops[1]=cmd_top(argc2,argv2,NULL);
 	
 	nm->logging_detail_level=tops[0]->numa_migrate_logdetail;
 	nm->moved_pages=0;
@@ -110,26 +136,19 @@ int init_numa_analysis(int mode, int pid,char **command_args,int command_argc ){
 	nm->file_label=tops[0]->numa_filelabel;
 	nm->timer_up=false;
 	
-	nm2->logging_detail_level=tops[1]->numa_migrate_logdetail;
-	nm2->moved_pages=0;
-	tops[1]->numa_metrics=nm2;
-	nm2->pid_uo=mode==RUN_ATTACHED ? tops[1]->numa_migrate_pid_filter : pid;
-	nm2->file_label=tops[1]->numa_filelabel;
-	nm2->timer_up=false;
 	
 	if (!tops[0])
 		return NUMATOOL_ERROR;
 		
 	
 	if(pthread_create(&numatool_thread,NULL,run_numa_analysis, tops)){
-		return NUMATOOL_ERROR;
+		return NUMATOOL_ERROR; 
 	}
 	
 	//in case of using run_command will launch the process
 	
 	if(mode==RUN_COMMAND){
 		nm->pid_uo=launch_command(command_args, command_argc);
-		nm2->pid_uo=nm->pid_uo;
 	}
 		
 	pthread_join(numatool_thread, NULL); 
@@ -142,6 +161,5 @@ int main(int argc, const char **argv){
 	page_size = sysconf(_SC_PAGE_SIZE);
 
 	resp=init_numa_analysis(RUN_COMMAND, 0,argv, argc);
-	printf("end of measurement %d \n", resp);
 }
 

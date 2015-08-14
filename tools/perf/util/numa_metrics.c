@@ -14,6 +14,23 @@
 #include <errno.h>
 
 
+
+void add_page_2move(struct numa_metrics *nm,u64 addr){
+	struct l3_addr *new_entry;
+	
+	new_entry=malloc(sizeof(struct l3_addr));
+	memset(new_entry,0,sizeof(struct l3_addr));
+	new_entry->page_addr=(void *)addr;
+	
+	if(nm->pages_2move){
+		new_entry->next=nm->pages_2move;
+	}
+	
+	nm->number_pages2move++;
+	nm->pages_2move=new_entry;
+	
+}
+
 void print_migration_statistics(struct numa_metrics *nm){
 	struct page_stats *current,*tmp;
 	//TODO number cpus
@@ -32,10 +49,10 @@ void print_migration_statistics(struct numa_metrics *nm){
 	if(nm->file_label && strlen(nm->file_label)>0)
 		sprintf(lbl,"%s",nm->file_label);
 	
-	print_info(nm->report,"\t\t MIGRATION STATISTICS \n");
+	print_info(nm->report,"\n\n\n\t\t MIGRATION STATISTICS \n");
 	
-	print_info(nm->report,"%s: sampled accesses: %d\n %s: remote accesses: %d \n pzn remote %f \n\n\n", 
-		lbl,total_accesses, lbl, remote_accesses,rem2loc);
+	print_info(nm->report,"%s: sampled accesses: %d\n %s: remote accesses: %d \n %s pzn remote %f \n\n\n", 
+		lbl,total_accesses, lbl, remote_accesses,lbl,rem2loc);
 	print_info(nm->report,"%s moved pages: %d \n",lbl,nm->moved_pages);
 	
 	for(i=0; i<32; i++){
@@ -43,7 +60,6 @@ void print_migration_statistics(struct numa_metrics *nm){
 	}
 	
 	
-		
 	sort_entries(nm);
 	HASH_ITER(hh, nm->page_accesses, current, tmp) {
 		if(nm->report)
@@ -52,6 +68,30 @@ void print_migration_statistics(struct numa_metrics *nm){
 	
 	
 	
+}
+
+void do_great_migration(struct numa_metrics *nm){
+	struct l3_addr *current=nm->pages_2move;
+	void **pages;
+	int ret,count=0,*nodes,*status;
+	
+	pages=malloc(sizeof(void*) * nm->number_pages2move);
+	status=malloc(sizeof(int) * nm->number_pages2move);
+	nodes=malloc(sizeof(int) * nm->number_pages2move);
+	//consolidates the page addresses into a single page address package
+	while(current){
+	//	printf("%p \n", current->page_addr);
+		*(pages+count)=(void *)current->page_addr;
+		current=current->next;	
+		count++;
+		//todo adjust according to move decision
+		*(nodes+count)=1;
+	}
+	
+	ret= 	move_pages(nm->pid_uo, count, pages, nodes, status,0);
+	
+	printf("pages moved successfully \n");
+	//TODO take move decission 
 }
 
 int do_migration(struct numa_metrics *nm, int pid, struct perf_sample *sample){
@@ -228,6 +268,22 @@ void add_lvl_access( struct numa_metrics *multiproc_info, union perf_mem_data_sr
 	
 }
 
+void add_freq_access(struct numa_metrics *nm, int frequency){
+	struct freq_stats *current=NULL; 
+	HASH_FIND_INT(nm->freq_accesses, &frequency,current);
+	
+	if(!current){
+			current=malloc(sizeof(struct freq_stats));
+			memset(current,0,sizeof(struct freq_stats));
+			current->freq=frequency;
+			HASH_ADD_INT( nm->freq_accesses, freq, current );
+	}
+	
+	current->count++;
+	
+	
+}
+
 void add_mem_access( struct numa_metrics *multiproc_info, void *page_addr, int accessing_cpu){
 	struct page_stats *current=NULL; 
 	struct page_stats *cursor=NULL; 
@@ -269,14 +325,14 @@ void print_access_info(struct numa_metrics *multiproc_info ){
 	lbl= !multiproc_info->file_label || strlen(multiproc_info->file_label)<1 ? " " : multiproc_info->file_label;  
 	
 	HASH_ITER(hh, multiproc_info->lvl_accesses, current, tmp) {
-		print_info(multiproc_info->report,"%s :LEVEL %d count %d %s \n", lbl, current->mem_lvl, current->count,print_access_type(current->mem_lvl) );
+		print_info(multiproc_info->report,"%s:LEVEL %d count %d %s \n", lbl, current->mem_lvl, current->count,print_access_type(current->mem_lvl) );
 	}
 	print_info(multiproc_info->report, "\n\n\n Access breakdown by weight \n\n");
 	
 	for(i=0; i<WEIGHT_BUCKETS_NR; i++){
 		lbound=i*WEIGHT_BUCKET_INTERVAL;
 		ubound=(i+1)*WEIGHT_BUCKET_INTERVAL;
-		print_info(multiproc_info->report,"%s :%d - %d : %d\n", lbl,lbound,ubound, multiproc_info->access_by_weight[i]);
+		print_info(multiproc_info->report,"%s :%d-%d: %d\n", lbl,lbound,ubound, multiproc_info->access_by_weight[i]);
 	}
 	
 }
@@ -327,7 +383,7 @@ long id_sort(struct page_stats *a, struct page_stats *b) {
 }
 
 void sort_entries(struct numa_metrics *nm){
-	printf("\n Sorting page access entries \n ...");
+	printf("\n Sorting page access entries ... \n");
 	HASH_SORT( nm->page_accesses, id_sort );
 }
 
@@ -351,8 +407,8 @@ void init_report_file(struct numa_metrics *nm){
 		return;
 	}
 	fprintf(stdout,"Will output report to %s \n", fname);
-	(*nm).report=file;
-	(*nm).report_filename=fname;	
+	nm->report=file;
+	nm->report_filename=fname;	
 
 }
 
