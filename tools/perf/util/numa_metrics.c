@@ -14,6 +14,9 @@
 #include <errno.h>
 
 
+int freq_sort(struct freq_stats *a, struct freq_stats *b) {
+    return a->freq - b->freq;
+}
 
 void add_page_2move(struct numa_metrics *nm,u64 addr){
 	struct l3_addr *new_entry;
@@ -33,8 +36,9 @@ void add_page_2move(struct numa_metrics *nm,u64 addr){
 
 void print_migration_statistics(struct numa_metrics *nm){
 	struct page_stats *current,*tmp;
+	struct freq_stats *crr,*tmpf;
 	//TODO number cpus
-	int i=0, total_accesses=0, remote_accesses=0;
+	int i=0, total_accesses=0, remote_accesses=0,freq;
 	float rem2loc =0;
 	char lbl[30];
 	
@@ -62,11 +66,18 @@ void print_migration_statistics(struct numa_metrics *nm){
 	
 	sort_entries(nm);
 	HASH_ITER(hh, nm->page_accesses, current, tmp) {
-		if(nm->report)
+		freq=current->proc0_acceses + current->proc1_acceses;
+		add_freq_access(nm,freq);
+		if(nm->report)	
 			fprintf(nm->report," Accessed %p count %d %d \n",current->page_addr, current->proc0_acceses,current->proc1_acceses);
+			
 	}
+	//sort the frequencies
+	HASH_SORT( nm->freq_accesses, freq_sort );
 	
-	
+	HASH_ITER(hh, nm->freq_accesses, crr, tmpf) {
+		print_info(nm->report,"%s:pages accessed:%d:%d \n",lbl,crr->freq,crr->count);
+	}
 	
 }
 
@@ -90,6 +101,7 @@ void do_great_migration(struct numa_metrics *nm){
 	
 	ret= 	move_pages(nm->pid_uo, count, pages, nodes, status,0);
 	
+	nm->moved_pages=count;
 	printf("pages moved successfully \n");
 	//TODO take move decission 
 }

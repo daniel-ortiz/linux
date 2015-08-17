@@ -52,6 +52,7 @@ int wait_watch_process(int seconds,struct numa_metrics* nm){
 void * measure_aux_thread(void *arg){
 	struct perf_top *top=(struct perf_top*) arg;
 	int sleep_time=top->numa_sensing_time,wait_res;
+	char* newlabel;
 	sleep_time=sleep_time<1 ?  DEFAULT_SENSING_TIME  : sleep_time;
 	
 	
@@ -65,30 +66,34 @@ void * measure_aux_thread(void *arg){
 	if(top->migrate_track_levels){
 		print_access_info(top->numa_metrics);
 	}
-	if(top->migrate_filereport){
-		//TODO review this
-		//close_report_file(nm);
-	}
+	
 	top->numa_metrics->page_accesses=NULL;
 	top->numa_metrics->lvl_accesses=NULL;
+	top->numa_metrics->freq_accesses=NULL;
 	top->numa_metrics->moved_pages=0;
 	//TODO adjust to core size
 	memset(top->numa_metrics->remote_accesses ,0,32);
 	memset(top->numa_metrics->process_accesses ,0,32);
 	memset(top->numa_metrics->access_by_weight ,0,WEIGHT_BUCKETS_NR);
-
-	
+	newlabel=(char *)malloc((strlen(top->numa_metrics->file_label)*sizeof(char))+2);
+	strcpy(newlabel,top->numa_metrics->file_label);
+	strcat(newlabel,"-2"),
+	top->numa_metrics->file_label=newlabel;
 	printf("MIG-CTRL> Call page migration \n");
 	do_great_migration(top->numa_metrics);
 	top->numa_analysis_enabled=true;
 	wait_res=wait_watch_process(-1,top->numa_metrics);
 
+	
 	print_migration_statistics(top->numa_metrics);
 	if(top->migrate_track_levels){
 		print_access_info(top->numa_metrics);
 	}
 
-	
+	if(top->migrate_filereport){
+		//TODO review this
+		//close_report_file(nm);
+	}
 end_noproc:
 	printf("MIG-CTRL> End of measurement due to end of existing process");
 	top->numa_metrics->timer_up=true;
