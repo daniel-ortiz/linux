@@ -11,11 +11,77 @@
 #include <omp.h>
 #include <uthash.h>
 #include <stdarg.h>
+#include <string.h>
 #include <errno.h>
+#include <sys/time.h>
+#include "evlist.h"
 
+
+int* get_cpu_interval(int max_cores, char* siblings ){
+	int* sibling_array,i;
+	if(max_cores < 1) return NULL;
+	char *interval1,*interval2;
+	char *savep1,*savep2;
+	char* tok=strtok_r(siblings, ",",&savep1),*tokcpy;
+	int high, low;
+	
+	sibling_array=malloc(sizeof(int)*max_cores);
+	
+	//initialize array
+	memset(sibling_array, -1,max_cores);
+	
+		
+	
+	if(tok==NULL) return 0;
+	do{
+		tokcpy=(char*)malloc(sizeof(char)*strlen(tok));
+		strcpy(tokcpy,tok);
+		//process subtoken, that must be in the form #-#
+		interval1=strtok_r(tokcpy,"-",&savep2);
+		if(interval1!=NULL){
+			interval2=strtok_r(NULL,"-",&savep2);
+			if(interval2!=NULL){
+			//process interval	
+			low=atoi(interval1);
+			high=atoi(interval2);
+			if(low<high && high>0 && low>=0 && high<max_cores && low < max_cores && high < max_cores){
+				for(i=low; i<=high; i++) 
+				sibling_array[i]=1;
+			}
+			
+			}
+		} 
+		tok=strtok_r(NULL, ",",&savep1);
+	}while(tok !=NULL);
+	
+	return sibling_array;
+}
+
+double wtime()
+{
+  struct timeval tv;
+  gettimeofday(&tv, 0);
+
+  return tv.tv_sec+1e-6*tv.tv_usec;
+}
 
 int freq_sort(struct freq_stats *a, struct freq_stats *b) {
     return a->freq - b->freq;
+}
+
+void add_expensive_access(struct numa_metrics *nm,u64 addr){
+	struct l3_addr *new_entry;
+	
+	new_entry=malloc(sizeof(struct l3_addr));
+	memset(new_entry,0,sizeof(struct l3_addr));
+	new_entry->page_addr=(void *)addr;
+	
+	if(nm->expensive_accesses){
+		new_entry->next=nm->expensive_accesses;
+	}
+	
+	//nm->expensive_accesses++;
+	nm->expensive_accesses=new_entry;
 }
 
 void add_page_2move(struct numa_metrics *nm,u64 addr){
@@ -80,11 +146,12 @@ void print_migration_statistics(struct numa_metrics *nm){
 	}
 	
 }
-
 void do_great_migration(struct numa_metrics *nm){
 	struct l3_addr *current=nm->pages_2move;
 	void **pages;
-	int ret,count=0,*nodes,*status;
+	int ret,count=0,*nodes,*status,i,succesfully_moved=0;
+	double tinit=0, tfin=0;
+	struct page_stats *sear=NULL;
 	
 	pages=malloc(sizeof(void*) * nm->number_pages2move);
 	status=malloc(sizeof(int) * nm->number_pages2move);
@@ -92,6 +159,13 @@ void do_great_migration(struct numa_metrics *nm){
 	//consolidates the page addresses into a single page address package
 	while(current){
 	//	printf("%p \n", current->page_addr);
+		HASH_FIND_PTR( nm->page_accesses,&(current->page_addr),sear );
+		if(!sear){
+			printf("cannot find entry %lux,this should not happen \n",current->page_addr);
+			current=current->next;
+			continue;
+		}
+		
 		*(pages+count)=(void *)current->page_addr;
 		current=current->next;	
 		count++;
@@ -99,10 +173,28 @@ void do_great_migration(struct numa_metrics *nm){
 		*(nodes+count)=1;
 	}
 	
+	if(nm->migrate_chunk_size >0 )
+		count=nm->migrate_chunk_size;
+		
+	tinit=wtime();
 	ret= 	move_pages(nm->pid_uo, count, pages, nodes, status,0);
 	
+	if (ret!=0){
+		printf("move_pages returned an error %d",errno);
+	}
+	
+	//check the new home of the pages
+	ret= 	move_pages(nm->pid_uo, count, pages, NULL, status,0);
+	
+	for(i=0; i<count;i++){
+			if(status[i] >=0 && status[i]<nm->n_cpus)
+			succesfully_moved++;		
+		}
+	
+	tfin=wtime()-tinit;
+	
 	nm->moved_pages=count;
-	printf("pages moved successfully \n");
+	printf("%d pages moved successfully, move pages time %f \n",succesfully_moved,tfin);
 	//TODO take move decission 
 }
 
@@ -115,6 +207,7 @@ int do_migration(struct numa_metrics *nm, int pid, struct perf_sample *sample){
 	long ret;
 	struct page_stats *sear=NULL,*hashtable;
 	union perf_mem_data_src data_src; 
+
 	
 	st=-1;
 	
@@ -252,12 +345,29 @@ int filter_local_accesses(union perf_mem_data_src *entry){
 
 
 
-void init_processor_mapping(struct numa_metrics *multiproc_info){
-	int map[32]={0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0};
-	int i;
+void init_processor_mapping(struct numa_metrics *nm, struct cpu_topo *topol){
+
+	int i,j,*siblings;
+	int max_cores=0;;
+	int *core_to_node;
+
 	
-	for(int i=0; i<32;i++) 
-	multiproc_info->cpu_to_processor[i]=map[i];
+	//the new part begins here
+	max_cores=numa_num_configured_cpus();
+	core_to_node=malloc(sizeof(int)*max_cores);
+	memset(core_to_node,0,max_cores*sizeof(int));
+	for(i=0; i< nm->n_cpus;i++){
+		siblings=get_cpu_interval(max_cores, topol->core_siblings[i]);
+		if(!siblings) continue;
+		for(j=0; j<max_cores; j++)
+			*(core_to_node+j) = siblings[j]==1 ? i : *(core_to_node+j) ; 
+			free(siblings);
+	}
+	
+	for(int i=0; i<max_cores;i++) 
+	nm->cpu_to_processor[i]=core_to_node[i];
+	
+	free(core_to_node);
 }
 
 void add_lvl_access( struct numa_metrics *multiproc_info, union perf_mem_data_src *entry, int weight ){
@@ -352,8 +462,8 @@ void print_access_info(struct numa_metrics *multiproc_info ){
 //This method is based on util/sort.c:hist_entry__lvl_snprintf
 char* print_access_type(int entry)
 {
-	char out[64];
-	size_t sz = sizeof(out) - 1; /* -1 for null termination */
+	char out[500];
+	size_t sz = 500 - 1; /* -1 for null termination */
 	size_t i, l = 0;
 	u64 m =  PERF_MEM_LVL_NA;
 	u64 hit, miss;
@@ -502,4 +612,127 @@ char* get_command_string(const char ** argv, int argc){
 	}
 	
 	return str;
+}
+
+
+static void free_cpu_topo(struct cpu_topo *tp)
+{
+	u32 i;
+
+	if (!tp)
+		return;
+
+	for (i = 0 ; i < tp->core_sib; i++)
+		zfree(&tp->core_siblings[i]);
+
+	for (i = 0 ; i < tp->thread_sib; i++)
+		zfree(&tp->thread_siblings[i]);
+
+	free(tp);
+}
+
+static int build_cpu_topo(struct cpu_topo *tp, int cpu)
+{
+	FILE *fp;
+	char filename[MAXPATHLEN];
+	char *buf = NULL, *p;
+	size_t len = 0;
+	ssize_t sret;
+	u32 i = 0;
+	int ret = -1;
+
+	sprintf(filename, CORE_SIB_FMT, cpu);
+	fp = fopen(filename, "r");
+	if (!fp)
+		goto try_threads;
+
+	sret = getline(&buf, &len, fp);
+	fclose(fp);
+	if (sret <= 0)
+		goto try_threads;
+
+	p = strchr(buf, '\n');
+	if (p)
+		*p = '\0';
+
+	for (i = 0; i < tp->core_sib; i++) {
+		if (!strcmp(buf, tp->core_siblings[i]))
+			break;
+	}
+	if (i == tp->core_sib) {
+		tp->core_siblings[i] = buf;
+		tp->core_sib++;
+		buf = NULL;
+		len = 0;
+	}
+	ret = 0;
+
+try_threads:
+	sprintf(filename, THRD_SIB_FMT, cpu);
+	fp = fopen(filename, "r");
+	if (!fp)
+		goto done;
+
+	if (getline(&buf, &len, fp) <= 0)
+		goto done;
+
+	p = strchr(buf, '\n');
+	if (p)
+		*p = '\0';
+
+	for (i = 0; i < tp->thread_sib; i++) {
+		if (!strcmp(buf, tp->thread_siblings[i]))
+			break;
+	}
+	if (i == tp->thread_sib) {
+		tp->thread_siblings[i] = buf;
+		tp->thread_sib++;
+		buf = NULL;
+	}
+	ret = 0;
+done:
+	if(fp)
+		fclose(fp);
+	free(buf);
+	return ret;
+}
+
+ struct cpu_topo *build_cpu_topology(void)
+{
+	struct cpu_topo *tp;
+	void *addr;
+	u32 nr, i;
+	size_t sz;
+	long ncpus;
+	int ret = -1;
+
+	ncpus = sysconf(_SC_NPROCESSORS_CONF);
+	if (ncpus < 0)
+		return NULL;
+
+	nr = (u32)(ncpus & UINT_MAX);
+
+	sz = nr * sizeof(char *);
+
+	addr = calloc(1, sizeof(*tp) + 2 * sz);
+	if (!addr)
+		return NULL;
+
+	tp = addr;
+
+	addr += sizeof(*tp);
+	tp->core_siblings = addr;
+	addr += sz;
+	tp->thread_siblings = addr;
+
+	for (i = 0; i < nr; i++) {
+		ret = build_cpu_topo(tp, i);
+		if (ret < 0)
+			break;
+	}
+	if (ret) {
+		free_cpu_topo(tp);
+		tp = NULL;
+	}
+	return tp;
 }

@@ -52,6 +52,7 @@ struct perf_top {
 	int				numa_migrate_logdetail;
 	int				numa_sensing_time;
 	int 			argv_size;
+	int				migrate_chunk_size;
 	char**			command2_launch;
 	char* 			command_string;
 	const char*			numa_filelabel;

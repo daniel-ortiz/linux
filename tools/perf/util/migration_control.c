@@ -2,6 +2,7 @@
 #include "numa_metrics.h"
 #include "util/top.h"
 #include "util/util.h"
+
 #include <pthread.h>
 
 
@@ -13,7 +14,14 @@ int run_numa_analysis(void *arg){
 	int j;
 	
 	tops=(struct perf_top**)arg;
-	 
+	
+	if(tops[0]->numa_metrics->pid_uo==0){
+			tops[0]->numa_metrics->pid_uo=tops[0]->numa_migrate_pid_filter;
+	} 
+	
+	if(tops[0]->numa_metrics->pid_uo==0){
+		printf("MIG-CTRL>does not have a valid pid to track \”");
+	}
 	//phase 1: will run the tool for a specific measurement period
 	printf("MIG-CTRL> children thread launched\n");
 	
@@ -29,6 +37,36 @@ int run_numa_analysis(void *arg){
 	
 }
 
+//This is an O^2 algorithm
+//not intended for production use!
+void run_expensive_access_analysis(struct numa_metrics* nm){
+	struct l3_addr *start=nm->pages_2move,*tom_cursor;
+	struct exp_access *current=nm->expensive_accesses;
+	int repeated=0,counted=0;
+	union perf_mem_data_src ds;
+	
+	
+	u64 dsrc;
+	
+	while(current){
+		tom_cursor=start;
+		while(tom_cursor){
+			if(current->page_addr==tom_cursor->page_addr){
+				repeated++;
+				dsrc=current->samp.data_src;
+				ds.val=dsrc;
+				//printf("ea %s \n",print_access_type(ds.mem_lvl));
+				goto next_acc;			
+			}
+			tom_cursor=tom_cursor->next;
+			
+		}
+		next_acc: counted++;
+		current=current->next;
+	}
+	
+	printf("%d Slow access as part of move page out of %d \n", repeated,counted);
+}
 int wait_watch_process(int seconds,struct numa_metrics* nm){
 	int i=0,exit=0;
 	int sigres,*st=0,errn;
@@ -56,12 +94,14 @@ void * measure_aux_thread(void *arg){
 	sleep_time=sleep_time<1 ?  DEFAULT_SENSING_TIME  : sleep_time;
 	
 	
-
+	
 	wait_res=wait_watch_process(sleep_time,top->numa_metrics);
 	if(wait_res) goto end_noproc;
 	printf("MIG-CTRL> End of sampling period\n");
 	top->numa_analysis_enabled=false;
-	//print the overall statistics before moving pages
+	
+	do_great_migration(top->numa_metrics);
+	//print the overall statistics right after moving pages
 	print_migration_statistics(top->numa_metrics);
 	if(top->migrate_track_levels){
 		print_access_info(top->numa_metrics);
@@ -71,6 +111,7 @@ void * measure_aux_thread(void *arg){
 	top->numa_metrics->lvl_accesses=NULL;
 	top->numa_metrics->freq_accesses=NULL;
 	top->numa_metrics->moved_pages=0;
+	top->numa_metrics->expensive_accesses=NULL;
 	//TODO adjust to core size
 	memset(top->numa_metrics->remote_accesses ,0,32);
 	memset(top->numa_metrics->process_accesses ,0,32);
@@ -80,12 +121,13 @@ void * measure_aux_thread(void *arg){
 	strcat(newlabel,"-2"),
 	top->numa_metrics->file_label=newlabel;
 	printf("MIG-CTRL> Call page migration \n");
-	do_great_migration(top->numa_metrics);
+	
 	top->numa_analysis_enabled=true;
 	wait_res=wait_watch_process(-1,top->numa_metrics);
 
 	
 	print_migration_statistics(top->numa_metrics);
+	run_expensive_access_analysis(top->numa_metrics);
 	if(top->migrate_track_levels){
 		print_access_info(top->numa_metrics);
 	}
@@ -110,6 +152,10 @@ int init_numa_analysis(int mode, int pid,const char **command_args,int command_a
 	pthread_t numatool_thread;
 
 	struct numa_metrics* nm;
+	
+	struct cpu_topo *cpu_topo;
+	
+	page_size = sysconf(_SC_PAGE_SIZE);
 	//Numa-migrate stuff is initialized here
 	nm=malloc(sizeof(struct numa_metrics));
 	memset(nm, 0, sizeof(struct numa_metrics));
@@ -117,44 +163,44 @@ int init_numa_analysis(int mode, int pid,const char **command_args,int command_a
 	nm->lvl_accesses=NULL;
 	nm->pages_2move=NULL;
 
-	
-	init_processor_mapping(nm);
+	cpu_topo=build_cpu_topology();
+	nm->n_cpus=numa_num_configured_nodes();
+	init_processor_mapping(nm,cpu_topo);
 	
 	if (mode== RUN_ATTACHED){
 		if(pid==0)
-			return NUMATOOL_ERROR;
-			
+			return NUMATOOL_ERROR;	
 	}
-	else if (mode==RUN_COMMAND){
 
-	}
-	else{
-		return NUMATOOL_ERROR;
-	}
-	
+
 	tops[0]=cmd_top(command_argc,command_args,NULL);
-	
-	nm->logging_detail_level=tops[0]->numa_migrate_logdetail;
-	nm->moved_pages=0;
-	tops[0]->numa_metrics=nm;
-	nm->pid_uo=mode==RUN_ATTACHED ? tops[0]->numa_migrate_pid_filter : pid;
-	nm->file_label=tops[0]->numa_filelabel;
-	nm->timer_up=false;
-	
-	
 	if (!tops[0])
 		return NUMATOOL_ERROR;
 		
+	//initialization of the numa_metrics struct
+	nm->logging_detail_level=tops[0]->numa_migrate_logdetail;
+	nm->moved_pages=0;
+	tops[0]->numa_metrics=nm;
+	nm->pid_uo=tops[0]->numa_migrate_pid_filter;
+	nm->file_label=tops[0]->numa_filelabel;
+	nm->timer_up=false;
+	nm->migrate_chunk_size=tops[0]->migrate_chunk_size;
+	
+	
+	
+	//in case of using run_command will launch the process
+		
+	if(mode==RUN_COMMAND){
+		nm->pid_uo=launch_command(command_args, command_argc);
+	}
 	
 	if(pthread_create(&numatool_thread,NULL,run_numa_analysis, tops)){
 		return NUMATOOL_ERROR; 
 	}
 	
-	//in case of using run_command will launch the process
 	
-	if(mode==RUN_COMMAND){
-		nm->pid_uo=launch_command(command_args, command_argc);
-	}
+	
+	
 		
 	pthread_join(numatool_thread, NULL); 
 		return NUMATOOL_SUCCESS;

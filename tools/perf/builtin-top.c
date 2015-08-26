@@ -807,6 +807,11 @@ static void perf_event__process_sample(struct perf_tool *tool,
 				// migration cancelled, instead the L3s are added to the candidates list
 				//migrate_res=do_migration(nm, nm->pid_uo, sample);
 			}
+			//If the sample has a higher cost we save the address
+			// This is for analysis on the phase II
+			if(sample->weight > SAMPLE_WEIGHT_THRESHOLD){
+					add_expensive_access(top->numa_metrics,page_addr);
+			}
 		              
 		}
 		
@@ -1099,6 +1104,7 @@ struct perf_top* cmd_top(int argc, const char **argv, const char *prefix __maybe
 		.delay_secs	     = 2,
 		.numa_sensing_time	= 0,
 		.numa_migrate_mode =false,
+		.migrate_chunk_size = -1,
 		.record_opts = {
 			.mmap_pages	= UINT_MAX,
 			.user_freq	= UINT_MAX,
@@ -1213,6 +1219,8 @@ struct perf_top* cmd_top(int argc, const char **argv, const char *prefix __maybe
 		     "Disable the page migration and just gather statistics"),
 	OPT_BOOLEAN('0', "track-accesslvls", &top.migrate_track_levels,
 		     "In combination with numa-migrate keeps track of the number of accesses per access level "),
+	OPT_INTEGER('0', "migrate-chunk", &top.migrate_chunk_size,
+		    "Specifies the number of pages that will be simultaneously migrated"), 
 
 	OPT_END()
 	};

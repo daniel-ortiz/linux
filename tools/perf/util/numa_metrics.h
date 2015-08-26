@@ -4,10 +4,21 @@
 #include <uthash.h>
 #include <stdbool.h>
 #include "types.h"
+#include "event.h" 
+
+
+
 
 #define WEIGHT_BUCKETS_NR 19
 #define WEIGHT_BUCKET_INTERVAL 50
 #define LINE_SIZE 500
+#define SAMPLE_WEIGHT_THRESHOLD 800
+
+ #define CORE_SIB_FMT \
+         "/sys/devices/system/cpu/cpu%d/topology/core_siblings_list"
+ #define THRD_SIB_FMT \
+         "/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list"
+
 struct numa_metrics {
 	int n_cpus;
 	unsigned int pid_uo;
@@ -17,10 +28,12 @@ struct numa_metrics {
 	int logging_detail_level;
 	int number_pages2move;
 	int access_by_weight[WEIGHT_BUCKETS_NR];
+	int	migrate_chunk_size;
 	struct page_stats *page_accesses;
 	struct access_stats *lvl_accesses;
 	struct freq_stats *freq_accesses;
 	struct l3_addr *pages_2move;
+	struct exp_access *expensive_accesses;
 	int moved_pages;
 	FILE *report;
 	char* report_filename;
@@ -48,10 +61,26 @@ struct freq_stats{
 	UT_hash_handle hh;
 };
 
+struct cpu_topo {
+	u32 core_sib;
+	u32 thread_sib;
+	char **core_siblings;
+	char **thread_siblings;
+};
+
+
+//used to track the l3 access on the measurement phase
 struct l3_addr{
 	void* page_addr;
 	struct l3_addr *next;
 };
+
+struct exp_access{
+	void* page_addr;
+	struct exp_access *next;
+	struct perf_sample samp;
+};
+
 
 static const char * const mem_lvl[] = {
 	"N/A",
@@ -75,7 +104,7 @@ void sort_entries(struct numa_metrics *nm);
 
 int do_migration(struct numa_metrics *nm, int pid, struct perf_sample *sample);
 
-void init_processor_mapping(struct numa_metrics *multiproc_info);
+void init_processor_mapping(struct numa_metrics *multiproc_info, struct cpu_topo *topol);
 
 void add_mem_access( struct numa_metrics *multiproc_info, void *page_addr, int accessing_cpu);
 
@@ -108,5 +137,11 @@ void add_page_2move(struct numa_metrics *nm,u64 addr);
 void do_great_migration(struct numa_metrics *nm);
 
 void add_freq_access(struct numa_metrics *nm, int frequency);
+
+double wtime();
 	
+void add_expensive_access(struct numa_metrics *nm,u64 addr);
+
+ struct cpu_topo *build_cpu_topology(void);
+ 
 #endif
